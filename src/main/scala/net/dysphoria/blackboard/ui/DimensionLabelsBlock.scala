@@ -1,0 +1,38 @@
+package net.dysphoria.blackboard.ui
+
+import org.eclipse.swt.graphics._
+import blackboard.data._
+import blackboard.gfx._
+
+class DimensionLabelsBlock(parent: MetaGrid, val displayDimension: DisplayDimension) 
+		extends TableBlock(parent, displayDimension.dim) {
+
+	dimensionMap = Map(displayDimension -> 0)
+	override def requireValidDimensionMap{}
+
+	/**
+	 * Returns whether this block displays one of the X dimensions (as opposed to
+	 * one of the Y dimensions). If true, this is a horizontal list of labels;
+	 * if false, this is a vertical list of labels.
+	 */
+	def isXNotY = {
+		val isInX = xDimensions contains displayDimension
+		val isInY = yDimensions contains displayDimension
+		require(isInX || isInY)
+		assert(! (isInX && isInY))
+		isInX
+	}
+
+	// More efficient implementation of lookup for one-dimensional block.
+	override def displayToTableCoordinates(xCoords: Seq[Int], yCoords: Seq[Int]): Seq[Int] =
+		List(displayToTableCoordinate(xCoords, yCoords))
+
+	def displayToTableCoordinate(xCoords: Seq[Int], yCoords: Seq[Int]): Int = {
+		if (isXNotY)
+			xCoords(xDimensions indexOf displayDimension)
+		else
+			yCoords(yDimensions indexOf displayDimension)
+	}
+
+}
+
