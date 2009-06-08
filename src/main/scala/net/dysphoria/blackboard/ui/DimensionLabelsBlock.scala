@@ -4,8 +4,8 @@ import org.eclipse.swt.graphics._
 import blackboard.data._
 import blackboard.gfx._
 
-class DimensionLabelsBlock(parent: MetaGrid, val displayDimension: DisplayDimension) 
-		extends TableBlock(parent, displayDimension.dim) {
+class DimensionLabelsBlock(val displayDimension: DisplayDimension) 
+		extends TableBlock(displayDimension.dim) {
 
 	dimensionMap = Map(displayDimension -> 0)
 	override def requireValidDimensionMap{}

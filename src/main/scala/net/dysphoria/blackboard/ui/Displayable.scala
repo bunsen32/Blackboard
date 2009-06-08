@@ -11,6 +11,6 @@ import org.eclipse.swt.graphics._
 import blackboard.gfx._
 
 trait Displayable {
-	def render(g: Gfx, xy: Point);
+	def render(g: DrawingContext, xy: Point);
 	def size: Point
 }

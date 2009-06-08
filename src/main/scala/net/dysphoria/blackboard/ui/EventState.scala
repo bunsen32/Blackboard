@@ -11,8 +11,9 @@ import org.eclipse.swt.SWT._
 
 class EventState(stateMask: Int) {
 
-	def isMultiSelect = (stateMask & COMMAND) != 0
-	def isExtendSelect = (stateMask & SHIFT) != 0
-	def isAltBehaviour = (stateMask & ALT) != 0
+	// According to http://book.javanb.com/swt-the-standard-widget-toolkit/ch02lev1sec2.html
+	def isMultiSelect = (stateMask & MOD1) != 0
+	def isExtendSelect = (stateMask & MOD2) != 0
+	def isAltBehaviour = (stateMask & MOD3) != 0
 	def isPrimaryButton = (stateMask & BUTTON1) != 0
 }

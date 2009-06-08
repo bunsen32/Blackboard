@@ -4,7 +4,7 @@ import blackboard.data._
 import scala.collection.immutable
 import selection._
 
-class TableBlock(parent: MetaGrid, table: Table) extends TabularBlock(parent, table) {
+class TableBlock(table: Table) extends TabularBlock(table) {
 	var dimensionMap = immutable.Map.empty[DisplayDimension, Int]
 
 	def requireValidDimensionMap {
@@ -15,10 +15,10 @@ class TableBlock(parent: MetaGrid, table: Table) extends TabularBlock(parent, ta
 		}
 	}
 
-	override def cellIsSelected(indices: Array[Int]) = parent.selection match {
+	override def cellIsSelected(ui: UIState, indices: Array[Int]) = ui.selection match {
 		case s: HasTableCells => {
 			if (s.containsCell(this, indices)) 2 else 0
 		}
-		case _ => super.cellIsSelected(indices)
+		case _ => super.cellIsSelected(ui, indices)
 	}
 }

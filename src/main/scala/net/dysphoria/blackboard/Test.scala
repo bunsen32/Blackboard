@@ -5,10 +5,12 @@ import swt.layout
 import swt.graphics
 import swt.widgets
 import swt.SWT._
+import swt.events._
 
 import blackboard.data._
 import blackboard.gfx._
 import blackboard.ui._
+import Listeners._
 
 /**
  * Says “hello” to the world.
@@ -24,9 +26,19 @@ object Test {
 	def testWindow: widgets.Shell = {
 		val shell = new widgets.Shell(display)
 		shell.setText("Blackboard")
-		shell.setLayout(new layout.GridLayout(1, true))
-
+		val shellLayout = new layout.FillLayout()
+		shellLayout.marginWidth = 0
+		shellLayout.marginHeight = 0
+		shell.setLayout(shellLayout)
 		val view = new ui.GridView(shell, swt.SWT.NONE)
+		/*shell.addControlListener(new ControlAdapter {
+			override def controlResized(e: ControlEvent){
+				val rect = shell.getClientArea
+				view.setSize(rect.width, rect.height)
+			}
+
+		})*/
+
 		val grid = view.everything
 
 
@@ -54,7 +66,7 @@ object Test {
 			val dimensions = Array(d0, d1, d2)
 			def apply(args: Seq[Any]) = (1 /: args)(_ * _.asInstanceOf[Int])
 		}
-		val tb = new TableBlock(grid, t)
+		val tb = new TableBlock(t)
 		tb.dimensionMap = Map(dd0 -> 0, dd1 -> 1, dd2 -> 2)
 
 
@@ -65,7 +77,7 @@ object Test {
 				(0 /: d0.range)((sum, a) => sum + (t.apply(
 						List(a) ++ args)))
 		}
-		val tbSum = new TableBlock(grid, tSum)
+		val tbSum = new TableBlock(tSum)
 		tbSum.dimensionMap = Map(dd1 -> 0, dd2 -> 1)
 
 		grid.setGridSize(4, 2)
@@ -77,10 +89,10 @@ object Test {
 		grid.yDimensionLists(0) = List(dFill)
 		grid.yDimensionLists(1) = List(dd1, dd2)
 
-		grid(2, 0) = Some(new DimensionLabelsBlock(grid, dd0))
+		grid(2, 0) = Some(new DimensionLabelsBlock(dd0))
 
-		grid(0, 1) = Some(new DimensionLabelsBlock(grid, dd1))
-		grid(1, 1) = Some(new DimensionLabelsBlock(grid, dd2))
+		grid(0, 1) = Some(new DimensionLabelsBlock(dd1))
+		grid(1, 1) = Some(new DimensionLabelsBlock(dd2))
 		grid(2, 1) = Some(tb)
 		grid(3, 1) = Some(tbSum)
 
@@ -98,20 +110,9 @@ object Test {
 			val img = display getSystemImage ICON_WARNING
 			val popup = new widgets.Shell(window, NO_TRIM | ON_TOP)
 			popup.setBackground(display getSystemColor COLOR_RED)
-			/*val region = new graphics.Region(display)
-			val pixel = new graphics.Rectangle(0, 0, 1, 1)
-			for(y <- 0 to 200 by 2; x <- 0 to 200 by 2){
-				pixel.x = x; pixel.y = y
-				region add pixel
-			}
-			popup setRegion region
-			val size = region.getBounds
-				println(size.x + ","+size.y)
-			*/
 			popup setAlpha 128
 
 			popup setSize(200, 200)
-			import Listeners._
 			popup addPaintListener ((e: swt.events.PaintEvent) => {
 				val bounds = img getBounds
 				val size = popup.getSize
@@ -125,7 +126,7 @@ object Test {
 				override def mouseUp(e: swt.events.MouseEvent) {
 					popup.open
 				}
-				})
+			})
 
 			while(!window.isDisposed){
 				if (!display.readAndDispatch) display.sleep

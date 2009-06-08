@@ -18,7 +18,7 @@ import selection._
  * which it intersects. As opposed to a block which is empty or just contains
  * a label or something.
  */
-abstract class TabularBlock(val parent: MetaGrid, val table: Table) extends DisplayBlock {
+abstract class TabularBlock(val table: Table) extends DisplayBlock {
 	def requireValidDimensionMap
 	def dimensionMap: Map[DisplayDimension, Int]
 
@@ -51,7 +51,7 @@ abstract class TabularBlock(val parent: MetaGrid, val table: Table) extends Disp
 	}
 
 
-	def render(gfx: Gfx, origin: Point){
+	def render(gfx: DrawingContext, origin: Point){
 		requireValidDimensionMap
 		val sz = size
 		renderRows(
@@ -62,7 +62,7 @@ abstract class TabularBlock(val parent: MetaGrid, val table: Table) extends Disp
 			new Array[Int](table.arity))
 	}
 
-	def renderRows(gfx: Gfx, bounds: Rectangle, dxs: List[DisplayDimension], dys: List[DisplayDimension], indices: Array[Int]) {
+	def renderRows(gfx: DrawingContext, bounds: Rectangle, dxs: List[DisplayDimension], dys: List[DisplayDimension], indices: Array[Int]) {
 		if (dys.exists(dd => dimensionMap contains dd)) {
 			val (dy :: others) = dys
 			val dimensionIx = dimensionMap get dy
@@ -84,7 +84,7 @@ abstract class TabularBlock(val parent: MetaGrid, val table: Table) extends Disp
 			renderRowCells(gfx, bounds, dxs, indices)
 	}
 
-	def renderRowCells(gfx: Gfx, bounds: Rectangle, dxs: List[DisplayDimension], indices: Array[Int]) {
+	def renderRowCells(gfx: DrawingContext, bounds: Rectangle, dxs: List[DisplayDimension], indices: Array[Int]) {
 		if (dxs.exists(dd => dimensionMap contains dd)) {
 			val (dx :: others) = dxs
 			val dimensionIx = dimensionMap get dx
@@ -106,7 +106,7 @@ abstract class TabularBlock(val parent: MetaGrid, val table: Table) extends Disp
 			renderCell(gfx, bounds, indices)
 	}
 
-	def drawSeparator(gfx: Gfx, d: DisplayDimension, x0: Int, y0: Int, x1: Int, y1: Int){
+	def drawSeparator(gfx: DrawingContext, d: DisplayDimension, x0: Int, y0: Int, x1: Int, y1: Int){
 		d.interItemLine match {
 			case None => ;// No line
 			case Some(l) => {
@@ -121,12 +121,12 @@ abstract class TabularBlock(val parent: MetaGrid, val table: Table) extends Disp
 	val yellow = new RGB(255, 255, 0)
 	val lightYellow = new RGB(255, 255, 200)
 
-	def renderCell(gfx: Gfx, bounds: Rectangle, indices: Array[Int]) {
+	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Array[Int]) {
 		val value = table.applyByIndex(indices)
 
 		import gfx._
 		withclip(bounds){
-			gc.setBackground(gfx.colorForRGB(cellIsSelected(indices) match {case 0 => white;case 1=>lightYellow; case _ => yellow}))
+			gc.setBackground(gfx.colorForRGB(cellIsSelected(gfx.ui, indices) match {case 0 => white;case 1=>lightYellow; case _ => yellow}))
 			gc.fillRectangle(bounds)
 			gc.setForeground(gfx.colorForRGB(black))
 			gc.drawString(value.toString, bounds.x, bounds.y+2, true)
@@ -134,7 +134,7 @@ abstract class TabularBlock(val parent: MetaGrid, val table: Table) extends Disp
 	}
 
 
-	def cellIsSelected(indices: Array[Int]) = parent.selection match {
+	def cellIsSelected(ui: UIState, indices: Array[Int]) = ui.selection match {
 		case s: HasDisplayDimensionValues => {
 			val dValues = s.dimensionValues
 			var containsAnyDimensions = false

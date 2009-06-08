@@ -16,7 +16,7 @@ class LineDescriptor(var colour: RGB, var thickness: Float, var style: Int){
 
 	private lazy val attrs = new LineAttributes(thickness, SWT.CAP_SQUARE, SWT.JOIN_MITER, style, null, 0, 0)
 
-	def setAttributesOf(gfx: Gfx){
+	def setAttributesOf(gfx: DrawingContext){
 		import gfx._
 		gc setLineAttributes attrs
 		gc setForeground colorForRGB(colour)

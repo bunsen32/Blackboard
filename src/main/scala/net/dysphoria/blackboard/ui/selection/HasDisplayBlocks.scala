@@ -21,17 +21,13 @@ trait HasDisplayBlock extends HasDisplayBlocks {
 	def blocks = Set(block)
 }
 
-case class SingleDisplayBlock(override val block: DisplayBlock) extends HasDisplayBlock {
+trait IsBlockLevel extends HasDisplayBlocks
+
+case class SingleGridSpace(grid: MetaGrid, ix: Int, iy: Int) extends HasDisplayBlock with IsBlockLevel {
+	override def block = grid(ix, iy)
 	override def contains(other: Selectable) = other match {
-		case b: HasDisplayBlock => blocks.contains(b.block)
+		case b: HasDisplayBlock => block == b.block
 		case _ => super.contains(other)
 	}
 }
 
-case class EmptyGridSpace(val x: Int, val y: int) extends Selectable {
-
-	override def contains(other: Selectable) = other match {
-		case EmptyGridSpace(otherX, otherY) => x == otherX && y == otherY
-		case _ => super.contains(other)
-	}
-}

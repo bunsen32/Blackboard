@@ -16,7 +16,6 @@ class MetaGrid extends Displayable {
 	private var _blocks: Array[Array[Option[DisplayBlock]]] = _
 	val xDimensionLists = new DimensionListVector
 	val yDimensionLists = new DimensionListVector
-	var selection: Selectable = NullSelection
 
 	class DimensionListVector extends RandomAccessSeq[List[DisplayDimension]] {
 		private var array = new Array[List[DisplayDimension]](4)
@@ -76,23 +75,46 @@ class MetaGrid extends Displayable {
         (0 /: xDimensionLists)(_ + widthOf(_)),
         (0 /: yDimensionLists)(_ + widthOf(_)))
 
-	def render(gfx: Gfx, position: Point) {
-        var y = 0
+	def render(gfx: DrawingContext, position: Point) {
+        var y = position.y
         var iy = 0
 		for(dy <- yDimensionLists){
-			var x = 0
+			val height = widthOf(dy)
+			var x = position.x
             var ix = 0
             for(dx <- xDimensionLists){
-				this(ix, iy) match {
-					case Some(b) => 
-						b.render(gfx, new Point(position.x + x, position.y + y))
-						
-					case None => /*ignore*/;
-                }
-				x += widthOf(dx)
+				val width = widthOf(dx)
+				val b = this(ix, iy)
+				b.render(gfx, new Point(x, y))
+				if (gfx.ui.selectLargeBits) {
+					import gfx.gc._
+					import Style._
+					setAlpha(BlockFillAlpha)
+					setBackground(gfx.colorForRGB(BlockFill))
+					fillRoundRectangle(x, y, width, height, 3, 3)
+					setAlpha(255)
+					BlockOutline.setAttributesOf(gfx)
+					drawRoundRectangle(x, y, width, height, 3, 3)
+				}
+
+				gfx.ui.selection match {
+					case SingleGridSpace(_, jx, jy) if (jx==ix && jy==iy) => {
+						import gfx.gc._
+						import Style._
+						setAlpha(BlockFillAlpha)
+						setBackground(gfx.colorForRGB(BlockFill))
+						fillRoundRectangle(x, y, width, height, 3, 3)
+						setAlpha(255)
+						BlockOutline.setAttributesOf(gfx)
+						drawRoundRectangle(x, y, width, height, 3, 3)
+					}
+					case _ => ;//ignore
+				}
+
+				x += width
                 ix += 1
             }
-			y += widthOf(dy)
+			y += height
             iy += 1
         }
 	}
@@ -140,25 +162,18 @@ class MetaGrid extends Displayable {
 	}
 
 	def apply(x: Int, y: Int) = {
-		require( x >= 0 && x < xGridSize && y >= 0 && y < yGridSize)
-		if(_blocks == null || x >= _blocks.length)
-			None
-			
-		else{
-			val col = _blocks(x)
-			if (col == null || y >= col.length)
-				None
-
-			else
-				col(y) match {
-					case null => None
-					case cell => cell
-				}
+		optionBlockAt(x, y) match {
+			case Some(b) => b
+			case None => {
+				val newB = new EmptyBlock
+				update(x, y, Some(newB))
+				newB
+			}
 		}
 	}
 	
 	def update(x: Int, y: Int, cell: Option[DisplayBlock]){
-		val existing = this(x, y)
+		val existing = optionBlockAt(x, y)
 		if (existing != cell){
 			existing match {
 				case None => ; // Do nothing
@@ -169,10 +184,28 @@ class MetaGrid extends Displayable {
 				case Some(block) => {
 					_blocks = ensureLength(_blocks, xGridSize)
 					_blocks(x) = ensureLength(_blocks(x), yGridSize)
-					block.own(xDimensionLists(x), yDimensionLists(y))
+					block.own(this, x, y)
 				}
 			}
 			_blocks(x)(y) = cell
+		}
+	}
+
+	def optionBlockAt(x: Int, y: Int) = {
+		require( x >= 0 && x < xGridSize && y >= 0 && y < yGridSize)
+		if(_blocks == null || x >= _blocks.length)
+			None
+
+		else{
+			val col = _blocks(x)
+			if (col == null || y >= col.length)
+				None
+
+			else
+				col(y) match {
+					case null => None
+					case cell => cell
+				}
 		}
 	}
 
