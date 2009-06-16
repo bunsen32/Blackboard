@@ -196,40 +196,48 @@ class GridView(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCROL
 	 * we need to recompute the view area available and scroll position. Et voila:
 	 */
 	def computeBounds {
-		val canvas = getClientArea
-		canvas.width = (canvas.width / scale).toInt
-		canvas.height = (canvas.height / scale).toInt
+		val clientArea = getClientArea
+		val canvasWidth = (clientArea.width / scale)
+		val canvasHeight = (clientArea.height / scale)
 		val model = everything.size
-		val x0 = model.x - canvas.width
-		val y0 = model.y - canvas.height
-		
-		minX = 0 min x0
-		minY = 0 min y0
-		maxX = 0 max x0
-		maxY = 0 max y0
 
-		val rangeX = maxX - minX
-		val rangeY = maxY - minY
+		if (model.x > canvasWidth){
+			minX = 0
+			maxX = model.x - canvasWidth
+		}else{
+			minX = (model.x - canvasWidth) / 2
+			maxX = minX
+		}
+
+		if (model.y > canvasHeight){
+			minY = 0
+			maxY = model.y - canvasHeight
+		}else{
+			minY = (model.y - canvasHeight) / 2
+			maxY = minY
+		}
 
 		updateOrigin
 		val xScroll = getHorizontalBar
-		val xPage = ((canvas.width min model.x) * 256).toInt
+		val xPage = (canvasWidth * 256).toInt
+		val xSize = ((canvasWidth max model.x) * 256).toInt
 		val xSmall = 20*256
 		xScroll.setValues(
 			((offsetX - minX) * 256F).toInt, // selection
 			0, // minimum
-			((canvas.width max model.x) * 256).toInt, // maximum
+			xSize, // maximum
 			xPage, // thumb
 			xSmall, // increment
 			(xPage - xSmall) max xSmall) // pageIncrement
 		
 		val yScroll = getVerticalBar
-		val yPage = ((canvas.height min model.y) * 256).toInt
+		val yPage = (canvasHeight * 256).toInt
+		val ySize = ((canvasHeight max model.y) * 256).toInt
 		val ySmall = 20*256
 		yScroll.setValues(
 			((offsetY - minY) * 256F).toInt, // selection
 			0, // minimum
-			((canvas.height max model.y) * 256).toInt, // maximum
+			ySize, // maximum
 			yPage, // thumb
 			ySmall, // increment
 			(yPage - ySmall) max ySmall) // pageIncrement
@@ -243,13 +251,13 @@ class GridView(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCROL
 		yScroll.setSelection(((offsetY - minY) * 256F).toInt)
 	}
 
-	def setOrigin(x: Float, y: Float){
+	private def setOrigin(x: Float, y: Float){
 		idealOffsetX = x
 		idealOffsetY = y
 		updateOrigin
 	}
 
-	def updateOrigin {
+	private def updateOrigin {
 		val x = minX.toFloat max idealOffsetX min maxX
 		val y = minY.toFloat max idealOffsetY min maxY
 		if (x != offsetX || y != offsetY) {
