@@ -14,4 +14,6 @@ object Style {
 	val BlockOutline = new LineDescriptor(new RGB(90, 90, 120), 3F)
 	val BlockFill = new RGB(90, 90, 120)
 	val BlockFillAlpha = 128
+
+	val DropInsertionLine = new LineDescriptor(new RGB(255, 0, 0), 2F)
 }

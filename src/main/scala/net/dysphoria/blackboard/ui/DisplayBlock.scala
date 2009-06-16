@@ -8,25 +8,33 @@ abstract class DisplayBlock extends Displayable {
 	private var _owner: Option[MetaGrid] = None
 	private var _xIndex = 0
 	private var _yIndex = 0
-	private var _xDimensions: List[DisplayDimension] = _
-	private var _yDimensions: List[DisplayDimension] = _
+	private var _xDimensions: List[DisplayDimension] = Nil
+	private var _yDimensions: List[DisplayDimension] = Nil
 
-	def isOwned = _owner.isDefined
-	def xIndex = _xIndex
-	def yIndex = _yIndex
-	def xDimensions = _xDimensions
-	def yDimensions = _yDimensions
+	def hasOrientation = _owner.isDefined
+	def assertHasOrientation = if (!hasOrientation) throw new IllegalStateException
+	def xIndex = {
+		assertHasOrientation
+		_xIndex
+	}
+	def yIndex = {
+		assertHasOrientation
+		_yIndex
+	}
+	def xDimensions = {
+		assertHasOrientation
+		_xDimensions
+	}
+	def yDimensions = {
+		assertHasOrientation
+		_yDimensions
+	}
 
-	def disown {
-		require(isOwned)
-
-		_xDimensions = Nil
-		_yDimensions = Nil
+	def resetOrientation {
 		_owner = None
 	}
 
-	def own(parent: MetaGrid, x: Int, y: Int){
-		require(!isOwned)
+	def setOrientation(parent: MetaGrid, x: Int, y: Int){
 		_owner = Some(parent)
 		_xIndex = x
 		_yIndex = y

@@ -10,6 +10,8 @@ class DisplayDimension(val dim: data.Dimension) {
 	
 	def width = defaultItemWidth * dim.length
 	def itemWidth(index: Int):Int = defaultItemWidth
+
+	override def toString = "disp" + dim.toString
 }
 
 object DisplayDimension {
@@ -47,4 +49,5 @@ object DisplayDimension {
 			(Nil, p)
 		}
 	}
+
 }

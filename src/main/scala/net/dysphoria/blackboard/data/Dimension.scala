@@ -47,6 +47,8 @@ class ConcreteIntegerRangeDimension(range: Range) extends IntegerRangeDimension(
 		}
 		override val inverse = dim
 	}
+
+	override def toString = "IntegerRange("+range+")"
 }
 
 
@@ -82,4 +84,6 @@ object UnitDimension extends Dimension { dim =>
 		}
 		override val inverse = dim
 	}
+
+	override def toString = "UnitDimension"
 }

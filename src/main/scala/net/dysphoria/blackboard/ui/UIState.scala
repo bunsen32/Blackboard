@@ -12,8 +12,18 @@ import selection._
 
 abstract sealed class DragState
 case object NoDrag extends DragState
-case object MouseDown extends DragState
+/**
+ * Represents the fact that the mouse is down, ready for dragging, but we have not
+ * yet entered the drag state. <var>x</var> and <var>y</var> represent the mouse
+ * coordinates relative to the current <var>UIState.focus<var>.
+ */
+case class MouseDown(x: Int, y: Int) extends DragState
+/**
+ * Whether we are in the midst of a 'drag' operation
+ * (as opposed to merely mid-'click').
+ */
 case object Dragging extends DragState
+
 
 class UIState(val control: GridView) {
 	def grid = control.everything
@@ -23,15 +33,8 @@ class UIState(val control: GridView) {
 	var isIncludingNotExcluding = false
 	var anchor: Selectable = NullSelection
 	var focus: Selectable = NullSelection
-	/**
-	 * Whether the mouse has moved far enough to register a 'drag' gesture
-	 * (as opposed to merely a 'click').
-	 */
 	var dragState: DragState = NoDrag
-	/**
-	 * Point relative to the selection origin on which the user has clicked to drag.
-	 */
-	var dragAnchor: Option[Point] = None
+	private var _dropTarget: Option[Displayable] = None
 
 	private var _selectLargeBits = false
 
@@ -74,6 +77,16 @@ class UIState(val control: GridView) {
 		control.redraw
 	}
 
+	def dropTarget = _dropTarget
+	def setDropTarget(d: Displayable) {
+		_dropTarget = Some(d)
+	}
+	def removeDropTarget(d: Displayable){
+		_dropTarget match {
+			case Some(`d`) => _dropTarget = None
+			case _ => ;//ignore
+		}
+	}
 
 	def combine(base: Selectable, addDontRemove: Boolean, extension: Selectable): Selectable = {
 		(base, extension) match {

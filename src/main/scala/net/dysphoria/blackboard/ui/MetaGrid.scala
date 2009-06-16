@@ -14,6 +14,7 @@ class MetaGrid extends Displayable {
 	private var _xGridSize = 0
 	private var _yGridSize = 0
 	private var _blocks: Array[Array[Option[DisplayBlock]]] = _
+	private var _orientationsCurrent = false
 	val xDimensionLists = new DimensionListVector
 	val yDimensionLists = new DimensionListVector
 
@@ -26,7 +27,7 @@ class MetaGrid extends Displayable {
 		private[MetaGrid] def size_=(newSize: Int) {
 			if (newSize != size){
 				if (newSize < size)
-					for(i <- newSize to size)
+					for(i <- newSize until size)
 						array(i) = Nil
 				
 				_size = newSize
@@ -39,14 +40,6 @@ class MetaGrid extends Displayable {
 				Nil
 			else
 				array(pos) match {case null => Nil; case list => list}
-		}
-
-		def update(pos: Int, v: List[DisplayDimension]){
-			require(pos >= 0 && pos < size)
-			if (v != this(pos)){
-				if (pos >= array.size) ensureSize(size)
-				array(pos) = v
-			}
 		}
 
 		private def ensureSize(sz: Int){
@@ -68,6 +61,57 @@ class MetaGrid extends Displayable {
 				x = limitX
 			}
 			return None
+		}
+		
+		/**
+		 * Given a distance coordinate in pixels, <var>p</var>, returns the 'gap'
+		 * (between DimensionList indices) that it's nearest to and the pixel 
+		 * offset from that gap. Zero is the gap before the first DimensionList;
+		 * one is the gap between the first and second DimensionList, and so on.
+		 * If there are n DimensionLists, 'n' is the gap after the last one.
+		 */
+		def gapHitTest(p: Int): (Int, Int) = {
+			var i = 0
+			var x = 0
+			while(i < length){
+				val w = widthOf(this(i))
+				if (p < x + (w/2)) return (i, p-x)
+				i += 1
+				x += w
+			}
+			return (length, p-x)
+		}
+
+		def gapPosition(i: Int) = {
+			require(i >= 0 && i <= length)
+			(0 /: this.take(i))(_ + widthOf(_))
+		}
+		
+		// MUTATORS
+		
+		def update(pos: Int, v: List[DisplayDimension]){
+			require(pos >= 0 && pos < size)
+			if (v != this(pos)){
+				if (pos >= array.size) ensureSize(size)
+				array(pos) = v
+				dirtyLayout
+			}
+		}
+
+		private[MetaGrid] def insert(pos: Int){
+			require(pos >= 0 && pos <= size)
+			val oldSize = size
+			size = oldSize + 1
+			val next = pos+1
+			if (pos < oldSize) Array.copy(array, pos, array, next, oldSize - pos)
+			array(pos) = Nil
+		}
+		
+		private[MetaGrid] def delete(pos: Int){
+			require(pos >= 0 && pos < size)
+			val next = pos+1
+			if (next < size) Array.copy(array, next, array, pos, size - next)
+			size -= 1
 		}
 	}
 
@@ -141,7 +185,7 @@ class MetaGrid extends Displayable {
 	def xGridSize_=(newXGridSize: Int){
 		require(newXGridSize >= 0)
 		if (newXGridSize < xGridSize)
-			clear(newXGridSize to xGridSize, 0 to yGridSize)
+			clear(newXGridSize until xGridSize, 0 until yGridSize)
 			
 		_xGridSize = newXGridSize
 		xDimensionLists.size = newXGridSize
@@ -151,25 +195,29 @@ class MetaGrid extends Displayable {
 	def yGridSize_=(newYGridSize: Int){
 		require(newYGridSize >= 0)
 		if (newYGridSize < yGridSize)
-			clear(0 to xGridSize, newYGridSize to yGridSize)
+			clear(0 until xGridSize, newYGridSize until yGridSize)
 
 		_yGridSize = newYGridSize
 		yDimensionLists.size = newYGridSize
 	}
 	
 	private def clear(xRange: Range, yRange: Range) {
-		for(col <- xRange; row <- yRange) this(row, col) = None
+		for(col <- xRange; row <- yRange) this(col, row) = None
 	}
 
 	def apply(x: Int, y: Int) = {
-		optionBlockAt(x, y) match {
-			case Some(b) => b
-			case None => {
-				val newB = new EmptyBlock
-				update(x, y, Some(newB))
-				newB
+		ensureOrientations
+		val result =
+			optionBlockAt(x, y) match {
+				case Some(b) => b
+				case None => {
+					val newB = new EmptyBlock
+					update(x, y, Some(newB))
+					newB
+				}
 			}
-		}
+		if (!result.hasOrientation) result.setOrientation(this, x, y)
+		result
 	}
 	
 	def update(x: Int, y: Int, cell: Option[DisplayBlock]){
@@ -177,14 +225,14 @@ class MetaGrid extends Displayable {
 		if (existing != cell){
 			existing match {
 				case None => ; // Do nothing
-				case Some(block) => block disown
+				case Some(block) => block.resetOrientation
 			}
 			cell match {
 				case None => ; // Do nothing
 				case Some(block) => {
+					block.resetOrientation
 					_blocks = ensureLength(_blocks, xGridSize)
 					_blocks(x) = ensureLength(_blocks(x), yGridSize)
-					block.own(this, x, y)
 				}
 			}
 			_blocks(x)(y) = cell
@@ -218,4 +266,116 @@ class MetaGrid extends Displayable {
 		}else
 			original
 	}
+
+
+	def insertCol(x: Int){
+		require(x >= 0 && x <= xGridSize)
+		dirtyLayout
+		_blocks = insertInto(_blocks, x, _xGridSize)
+		_xGridSize += 1
+		xDimensionLists.insert(x)
+	}
+	
+	def deleteCol(x: Int){
+		require(x >= 0 && x < xGridSize)
+		dirtyLayout
+		_blocks = deleteFrom(_blocks, x, _xGridSize)
+		_xGridSize -= 1
+		xDimensionLists.delete(x)
+	}
+	
+	def insertRow(y: Int){
+		require(y >= 0 && y <= yGridSize)
+		dirtyLayout
+		for(x <- 0 until _blocks.length)
+			if (_blocks(x) != null)
+				_blocks(x) = insertInto(_blocks(x), y, _yGridSize)
+		_yGridSize += 1
+		yDimensionLists.insert(y)
+	}
+	
+	def deleteRow(y: Int){
+		require(y >=0 && y < yGridSize)
+		dirtyLayout
+		for(x <- 0 until _blocks.length)
+			if (_blocks(x) != null)
+				_blocks(x) = deleteFrom(_blocks(x), y, _yGridSize)
+		_yGridSize -= 1 // do this after the 'deleteFrom'
+		yDimensionLists.delete(y)
+	}
+
+
+/*	private def ensureOrientations {
+		if (!_orientationsCurrent) {
+			for(x <- 0 until xGridSize; y <- 0 until yGridSize)
+				apply(x, y).setOrientation(this, x, y)
+			_orientationsCurrent = true
+		}
+	}
+*/
+
+	private def dirtyLayout {
+		_orientationsCurrent = false
+	}
+
+	private def ensureOrientations {
+		if (!_orientationsCurrent){
+			for(col <- _blocks; if col != null; b <- col) b match {
+				case Some(block) => block.resetOrientation
+				case _ => ;//ignore
+			}
+			_orientationsCurrent = true
+		}
+	}
+
+
+
+	private def insertInto[T >: Null](original: Array[T], pos: Int, originalRealLength: Int) = {
+		require(pos >= 0 && pos <= originalRealLength)
+		if (original == null || pos >= original.length)
+			original
+		else {
+			val newRealLength = originalRealLength + 1
+			val result = if (original.length >= newRealLength)
+					original
+				else {
+					val newArray = new Array[T](newRealLength)
+					assert(pos < original.length)
+					Array.copy(original, 0, newArray, 0, pos)
+					newArray
+				}
+			val next = pos + 1
+			val end = (original.length min originalRealLength)
+			Array.copy(original, pos, result, next, end - pos)
+			original(pos) = null
+			result
+		}
+	}
+
+	private def deleteFrom[T >: Null](original: Array[T], pos: Int, originalRealLength: Int) = {
+		require(pos >= 0 && pos < originalRealLength)
+		if (original == null || pos >= original.length)
+			original
+
+		else {
+			val newRealLength = originalRealLength - 1
+			val next = pos + 1
+			val end = (original.length min originalRealLength)
+			Array.copy(original, next, original, pos, end - next)
+			original(end - 1) = null
+			original
+		}
+	}
+
+	def reorderDisplayDimensions(blocks: Seq[DisplayBlock]): List[DisplayDimension] = {
+		val result = new ListBuffer[DisplayDimension]
+		for(b <- blocks) b match {
+			case labs: DimensionLabelsBlock => result.append(labs.displayDimension)
+			case _ => ;//ignore
+		}
+		result.toList
+	}
+
+
+	
 }

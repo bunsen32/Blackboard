@@ -31,13 +31,6 @@ object Test {
 		shellLayout.marginHeight = 0
 		shell.setLayout(shellLayout)
 		val view = new ui.GridView(shell, swt.SWT.NONE)
-		/*shell.addControlListener(new ControlAdapter {
-			override def controlResized(e: ControlEvent){
-				val rect = shell.getClientArea
-				view.setSize(rect.width, rect.height)
-			}
-
-		})*/
 
 		val grid = view.everything
 
@@ -101,26 +94,36 @@ object Test {
 		shell
 	}
 	
+	def testPopup(parent: widgets.Shell) = {
+		val img = display getSystemImage ICON_WARNING
+		val popup = new widgets.Shell(parent, NO_TRIM | ON_TOP | TRANSPARENT)
+		val shellLayout = new layout.FillLayout()
+		popup.setLayout(shellLayout)
+		val canvas = new widgets.Canvas(popup, NO_BACKGROUND | TRANSPARENT)
+		//popup.setBackground(new org.eclipse.swt.graphics.Color(0, 0, 0, 128))
+
+		//popup setAlpha 128
+		popup setSize(200, 200)
+		popup addPaintListener ((e: swt.events.PaintEvent) => {
+			val bounds = img getBounds
+			val size = popup.getSize
+			e.gc.setAdvanced(true)
+			e.gc.setAlpha(128)
+			e.gc.drawImage(img, 0, 0, bounds.width, bounds.height, 10, 10, size.x-20, size.y-20)
+			println("draw popup")
+		})
+		popup.addListener(KeyDown, ((e: widgets.Event) => {
+					if (e.character == ESC) popup setVisible false
+				}))
+
+		popup
+	}
 	
 	def main(args: Array[String]) {
 		try{
 			setUpApp
 			val window = testWindow
-
-			val img = display getSystemImage ICON_WARNING
-			val popup = new widgets.Shell(window, NO_TRIM | ON_TOP)
-			popup.setBackground(display getSystemColor COLOR_RED)
-			popup setAlpha 128
-
-			popup setSize(200, 200)
-			popup addPaintListener ((e: swt.events.PaintEvent) => {
-				val bounds = img getBounds
-				val size = popup.getSize
-				e.gc.drawImage(img, 0, 0, bounds.width, bounds.height, 10, 10, size.x-20, size.y-20)
-			})
-			popup.addListener(KeyDown, ((e: widgets.Event) => {
-						if (e.character == ESC) popup setVisible false
-					}))
+			val popup = testPopup(window)
 
 			window.addMouseListener(new swt.events.MouseAdapter {
 				override def mouseUp(e: swt.events.MouseEvent) {
