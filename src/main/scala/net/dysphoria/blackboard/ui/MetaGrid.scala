@@ -102,6 +102,7 @@ class MetaGrid extends Displayable {
 			require(pos >= 0 && pos <= size)
 			val oldSize = size
 			size = oldSize + 1
+			ensureSize(size)
 			val next = pos+1
 			if (pos < oldSize) Array.copy(array, pos, array, next, oldSize - pos)
 			array(pos) = Nil
@@ -266,6 +267,28 @@ class MetaGrid extends Displayable {
 		}else
 			original
 	}
+
+
+	/**
+	 * Remove any entirely empty rows or columns
+	 */
+	def compress {
+		for(y <- (0 until yGridSize).reverse)
+			if (row(y) forall (_.isInstanceOf[EmptyBlock]))
+				deleteRow(y)
+		for(x <- (0 until xGridSize).reverse)
+			if (column(x) forall (_.isInstanceOf[EmptyBlock]))
+				deleteCol(x)
+	}
+
+	def row(iy: Int): Seq.Projection[DisplayBlock] =
+		for(x <- 0 until xGridSize)
+			yield this(x, iy)
+
+	def column(ix: Int): Seq.Projection[DisplayBlock] =
+		for(y <- 0 until yGridSize)
+			yield this(ix, y)
+
 
 
 	def insertCol(x: Int){

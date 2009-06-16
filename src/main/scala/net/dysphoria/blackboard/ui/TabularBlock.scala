@@ -22,6 +22,7 @@ abstract class TabularBlock(val table: Table) extends DisplayBlock {
 	def requireValidDimensionMap
 	def dimensionMap: Map[DisplayDimension, Int]
 
+	def uses(dd: DisplayDimension) = dimensionMap.contains(dd)
 
 	def displayToTableCoordinates(xCoords: Seq[Int], yCoords: Seq[Int]): Seq[Int] = {
 		val tableCoords = new Array[Int](table.arity)

@@ -266,13 +266,15 @@ class GridView(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCROL
 		}
 	}
 
-	def viewToModel(p: Point) = new Point(
-		(p.x / scale + offsetX).toInt,
-		(p.y / scale + offsetY).toInt)
+	def viewToModel(p: Point): Point = viewToModel(p.x, p.y)
+	def viewToModel(x: Int, y: Int) = new Point(
+		(x / scale + offsetX).toInt,
+		(y / scale + offsetY).toInt)
 
-	def modelToView(p: Point) = new Point(
-		((p.x - offsetX) * scale).toInt,
-		((p.y - offsetY) * scale).toInt)
+	def modelToView(p: Point): Point = modelToView(p.x, p.y)
+	def modelToView(x: Int, y: Int) = new Point(
+		((x - offsetX) * scale).toInt,
+		((y - offsetY) * scale).toInt)
 
     def paintControl(e: PaintEvent) {
 		val gc = e.gc
