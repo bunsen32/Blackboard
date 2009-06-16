@@ -108,8 +108,8 @@ class GridView(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCROL
 					idealOffsetX = offsetX + point.x - newScaledPoint.x
 					idealOffsetY = offsetY + point.y - newScaledPoint.y
 					computeBounds
-					e.doit = false // consume the event
 				}
+				e.doit = false // consume the event
 			}
 			case SWT.KeyDown => {
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = true
