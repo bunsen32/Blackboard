@@ -15,6 +15,7 @@ sealed abstract class Orientation {
 	def choose(x: Int, y: Int): Int
 	def choose[A](x: A, y: A): A
 }
+
 case object XOrientation extends Orientation {
 	def isX = true
 	def isY = false
@@ -23,6 +24,7 @@ case object XOrientation extends Orientation {
 	def choose(x: Int, y: Int) = x
 	def choose[A](x: A, y: A) = x
 }
+
 case object YOrientation extends Orientation {
 	def isX = false
 	def isY = true

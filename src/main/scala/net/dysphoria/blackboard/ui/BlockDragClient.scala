@@ -23,6 +23,7 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 	val _block = selection.block
 	var _currentTargetControl: Option[GridView] = None
 	var _dropTarget: DropTarget = NoDropTarget
+	
 	var _pivotPoints: Set[DisplayBlock] = Set.empty
 	var _pivotSrcStrips: Set[Int] = Set.empty
 	var _pivotDstStrips: Set[Int] = Set.empty
@@ -85,8 +86,8 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 				currentTargetControl = Some(control)
 				
 			val modelOffset = control.viewToModel(offset)
-			val (xGap, dx) = grid.xDimensionLists.gapHitTest(modelOffset.x)
-			val (yGap, dy) = grid.yDimensionLists.gapHitTest(modelOffset.y)
+			val (xGap, dx) = grid.columns.gapHitTest(modelOffset.x)
+			val (yGap, dy) = grid.rows.gapHitTest(modelOffset.y)
 			val ix = if (dx < 0) xGap - 1 else xGap // -1 .. max(horiz) + 1
 			val iy = if (dy < 0) yGap - 1 else yGap // -1 .. max(vert) + 1
 			val destX = if (selection.ix < xGap) xGap - 1 else xGap
@@ -125,10 +126,10 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 				else rotationDropTarget match {
 					case NoDropTarget => {
 						if (ix == srcX) // Same column
-							if (destY != srcY) RowMovedTo(yGap) else NoDropTarget
+							if (destY != srcY) StripMovedTo(YOrientation, yGap) else NoDropTarget
 
 						else if (iy == srcY) // Same row
-							if (destX != srcX) ColumnMovedTo(xGap) else NoDropTarget
+							if (destX != srcX) StripMovedTo(XOrientation, xGap) else NoDropTarget
 
 						else NoDropTarget
 					}
@@ -170,8 +171,7 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 
 	abstract sealed class DropTarget
 	case object NoDropTarget extends DropTarget
-	case class ColumnMovedTo(xGap: Int) extends DropTarget
-	case class RowMovedTo(yGap: Int) extends DropTarget
+	case class StripMovedTo(o: Orientation, gap: Int) extends DropTarget
 	case class DimensionRotated(o: Orientation, gap: Int) extends DropTarget
 
 	object DropTargetRenderer extends Displayable {
@@ -191,12 +191,12 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 				gfx.gc.setAlpha(128)
 				for(block <- _pivotPoints){
 					val p0 = control.modelToView(
-						grid.xDimensionLists.gapPosition(block.xIndex),
-						grid.yDimensionLists.gapPosition(block.yIndex))
+						grid.columns.gapPosition(block.xIndex),
+						grid.rows.gapPosition(block.yIndex))
 				  
 					val p1 = control.modelToView(
-						grid.xDimensionLists.gapPosition(block.xIndex+1),
-						grid.yDimensionLists.gapPosition(block.yIndex+1))
+						grid.columns.gapPosition(block.xIndex+1),
+						grid.rows.gapPosition(block.yIndex+1))
 				  
 					gfx.gc.fillRectangle(p0.x, p0.y, p1.x-p0.x, p1.y-p0.y)
 				}
@@ -204,24 +204,21 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 
 			dropTarget match {
 				case NoDropTarget => ;// Nothing to draw
-				case ColumnMovedTo(xGap) => {
-					val x = grid.xDimensionLists.gapPosition(xGap)
-					val h = grid.size.y
-					drawLine(x, 0, x, h)
-				}
-				case RowMovedTo(yGap) => {
-					val y = grid.yDimensionLists.gapPosition(yGap)
-					val w = grid.size.x
-					drawLine(0, y, w, y)
+				case StripMovedTo(o, gap) => {
+					val p = grid.strips(o).gapPosition(gap)
+					if (o.isX)
+						drawLine(p, 0, p, grid.size.y)
+					else
+						drawLine(0, p, grid.size.x, p)
 				}
 				case DimensionRotated(o, gap) => {
-					val strips = grid.strips(o).dimensionLists
-					val gaps = grid.strips(o.opposite).dimensionLists
+					val strips = grid.strips(o)
+					val gaps = grid.strips(o.opposite)
 
 					for(strip <- _pivotDstStrips){
 						val a = strips.gapPosition(strip)
 						val b = gaps.gapPosition(gap)
-						val w = DisplayDimension.widthOf(strips(strip))
+						val w = DisplayDimension.widthOf(strips.dimensionLists(strip))
 						if (o.isX)
 							drawLine(a, b, a + w, b)
 						else
@@ -235,44 +232,33 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 	}
 
 	override def commit {
-		val ix = selection.ix
-		val iy = selection.iy
 		dropTarget match {
 			case NoDropTarget => ;// Nothing to draw
-			case ColumnMovedTo(xGap) => {
-				val destX = if (ix < xGap) xGap - 1 else xGap
-				val dims = grid.xDimensionLists(ix)
-				val col = grid.column(ix).toArray
-				val oldWidth = grid.xGridSize
-				grid.deleteCol(ix)
-				grid.insertCol(destX)
+			case StripMovedTo(o, gap) => {
+				val src = o.choose(selection.ix, selection.iy)
+				val strips = grid.strips(o)
+				val dest = if (src < gap) gap - 1 else gap
+				val dims = strips.dimensionLists(src)
+				val copied = strips(src).toArray
+				assert(copied.length == strips.depth)
+				strips.remove(src)
+				strips.insert(dest)
 				assert(dims != Nil)
-				grid.xDimensionLists(destX) = dims
-				pasteColumn(destX, col)
+				strips.dimensionLists(dest) = dims
+				paste(copied, strips, dest)
 				_block match {
 					case labels: DimensionLabelsBlock => {
-						val r = grid.row(iy)
-						grid.yDimensionLists(iy) = grid.reorderDisplayDimensions(r)
+						val srcDepth = o.choose(selection.iy, selection.ix)
+						val perpStrips = grid.strips(o.opposite)
+						val r = perpStrips(srcDepth)
+						perpStrips.dimensionLists(srcDepth) = grid.reorderDisplayDimensions(r)
 					}
 					case _=>;//ignore
 				}
-			}
-			case RowMovedTo(yGap) => {
-				val destY = if (iy < yGap) yGap - 1 else yGap
-				val dims = grid.yDimensionLists(iy)
-				val r = grid.row(iy).toArray
-				grid.deleteRow(iy)
-				grid.insertRow(destY)
-				assert(dims != Nil)
-				grid.yDimensionLists(destY) = dims
-				pasteRow(destY, r)
-				_block match {
-					case labels: DimensionLabelsBlock => {
-						val col = grid.column(ix)
-						grid.xDimensionLists(ix) = grid.reorderDisplayDimensions(col)
-					}
-					case _ =>;//ignore
-				}
+				control.computeBounds
+				ui.select(new SingleGridSpace(grid,
+											  o.choose(dest, selection.ix),
+											  o.choose(selection.iy, dest)))
 			}
 			case DimensionRotated(dstOrientation, gap) => {
 				val srcOrientation = dstOrientation.opposite
@@ -282,7 +268,8 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 				val srcStrips = grid.strips(srcOrientation)
 				for (s <- _pivotSrcStrips) {
 					for(b <- srcStrips(s)) b match {
-						case labs: DimensionLabelsBlock if (labs.displayDimension==dim) => srcStrips(s, b.stripDepth(srcOrientation)) = None
+						case labs: DimensionLabelsBlock if (labs.displayDimension == dim) =>
+							srcStrips(s, b.stripDepth(srcOrientation)) = None
 						case _ => ;//ignore
 					}
 					val newStripDimensions = grid.reorderDisplayDimensions(srcStrips(s))
@@ -301,18 +288,16 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 				grid.compress
 				// Bob's your uncle
 				control.computeBounds
+				val firstStrip = _pivotDstStrips.reduceLeft(_ min _)
+				ui.select(NullSelection)
 			}
 		}
 	}
 
-	private def pasteRow(iy: Int, row: RandomAccessSeq[DisplayBlock]) {
-		for(x <- 0 until grid.xGridSize)
-			grid(x, iy) = Some(row(x))
-	}
-
-	private def pasteColumn(ix: Int, col: RandomAccessSeq[DisplayBlock]) {
-		for(y <- 0 until grid.yGridSize)
-			grid(ix, y) = Some(col(y))
+	private def paste(src: RandomAccessSeq[DisplayBlock], strips: grid.Strips, s: Int) {
+		require(src.size == strips.depth)
+		for(d <- 0 until strips.depth)
+			strips(s, d) = Some(src(d))
 	}
 
 }

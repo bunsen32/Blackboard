@@ -50,43 +50,6 @@ class MetaGrid extends Displayable {
 			}
 		}
 		
-		def hitTest(p: Int): Option[(Int, Int)] = {
-			var i = 0
-			var x = 0
-			if (p < 0) return None
-			while(i < length){
-				val limitX = x + widthOf(this(i))
-				if (p < limitX) return Some((i, p - x))
-				i += 1
-				x = limitX
-			}
-			return None
-		}
-		
-		/**
-		 * Given a distance coordinate in pixels, <var>p</var>, returns the 'gap'
-		 * (between DimensionList indices) that it's nearest to and the pixel 
-		 * offset from that gap. Zero is the gap before the first DimensionList;
-		 * one is the gap between the first and second DimensionList, and so on.
-		 * If there are n DimensionLists, 'n' is the gap after the last one.
-		 */
-		def gapHitTest(p: Int): (Int, Int) = {
-			var i = 0
-			var x = 0
-			while(i < length){
-				val w = widthOf(this(i))
-				if (p < x + (w/2)) return (i, p-x)
-				i += 1
-				x += w
-			}
-			return (length, p-x)
-		}
-
-		def gapPosition(i: Int) = {
-			require(i >= 0 && i <= length)
-			(0 /: this.take(i))(_ + widthOf(_))
-		}
-		
 		// MUTATORS
 		
 		def update(pos: Int, v: List[DisplayDimension]){
@@ -165,10 +128,10 @@ class MetaGrid extends Displayable {
 	}
 	
 	def hitTest(point: Point): Option[(Int, Int, Point)] = {
-		xDimensionLists.hitTest(point.x) match {
+		columns.hitTest(point.x) match {
 			case None => None
 			case Some((iX, offsetX)) => {
-				yDimensionLists.hitTest(point.y) match {
+				rows.hitTest(point.y) match {
 					case None => None
 					case Some((iY, offsetY)) => Some((iX, iY, new Point(offsetX, offsetY)))
 				}
@@ -418,6 +381,44 @@ class MetaGrid extends Displayable {
 		def apply(j: Int): Iterable[DisplayBlock]
 		def insert(j: Int)
 		def remove(j: Int)
+
+		def gapPosition(i: Int) = {
+			require(i >= 0 && i <= extent)
+			(0 /: dimensionLists.take(i))(_ + widthOf(_))
+		}
+
+		def hitTest(p: Int): Option[(Int, Int)] = {
+			var i = 0
+			var x = 0
+			if (p < 0) return None
+			while(i < extent){
+				val limitX = x + widthOf(dimensionLists(i))
+				if (p < limitX) return Some((i, p - x))
+				i += 1
+				x = limitX
+			}
+			return None
+		}
+
+		/**
+		 * Given a distance coordinate in pixels, <var>p</var>, returns the 'gap'
+		 * (between DimensionList indices) that it's nearest to and the pixel
+		 * offset from that gap. Zero is the gap before the first DimensionList;
+		 * one is the gap between the first and second DimensionList, and so on.
+		 * If there are n DimensionLists, 'n' is the gap after the last one.
+		 */
+		def gapHitTest(p: Int): (Int, Int) = {
+			var i = 0
+			var x = 0
+			while(i < extent){
+				val w = widthOf(dimensionLists(i))
+				if (p < x + (w/2)) return (i, p-x)
+				i += 1
+				x += w
+			}
+			return (extent, p-x)
+		}
+
 	}
 
 	def strips(implicit o: Orientation) = o.choose(columns, rows)
@@ -443,5 +444,6 @@ class MetaGrid extends Displayable {
 		def insert(y: Int) = insertRow(y)
 		def remove(y: Int) = deleteRow(y)
 	}
+
 
 }
