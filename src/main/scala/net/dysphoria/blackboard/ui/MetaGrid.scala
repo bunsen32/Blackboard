@@ -14,7 +14,7 @@ class MetaGrid extends Displayable {
 	private var _xGridSize = 0
 	private var _yGridSize = 0
 	private var _blocks: Array[Array[Option[DisplayBlock]]] = _
-	private var _orientationsCurrent = false
+	private var _positionsCurrent = false
 	val xDimensionLists = new DimensionListVector
 	val yDimensionLists = new DimensionListVector
 
@@ -207,7 +207,7 @@ class MetaGrid extends Displayable {
 	}
 
 	def apply(x: Int, y: Int) = {
-		ensureOrientations
+		ensurePositions
 		val result =
 			optionBlockAt(x, y) match {
 				case Some(b) => b
@@ -217,7 +217,7 @@ class MetaGrid extends Displayable {
 					newB
 				}
 			}
-		if (!result.hasOrientation) result.setOrientation(this, x, y)
+		if (!result.hasPosition) result.setPosition(this, x, y)
 		result
 	}
 	
@@ -226,12 +226,12 @@ class MetaGrid extends Displayable {
 		if (existing != cell){
 			existing match {
 				case None => ; // Do nothing
-				case Some(block) => block.resetOrientation
+				case Some(block) => block.resetPosition
 			}
 			cell match {
 				case None => ; // Do nothing
 				case Some(block) => {
-					block.resetOrientation
+					block.resetPosition
 					_blocks = ensureLength(_blocks, xGridSize)
 					_blocks(x) = ensureLength(_blocks(x), yGridSize)
 				}
@@ -281,15 +281,21 @@ class MetaGrid extends Displayable {
 				deleteCol(x)
 	}
 
-	def row(iy: Int): Seq.Projection[DisplayBlock] =
-		for(x <- 0 until xGridSize)
-			yield this(x, iy)
+
+	def strip(o: Orientation, j: Int) =
+		if (o.isX) column(j) else row(j)
 
 	def column(ix: Int): Seq.Projection[DisplayBlock] =
 		for(y <- 0 until yGridSize)
 			yield this(ix, y)
 
+	def row(iy: Int): Seq.Projection[DisplayBlock] =
+		for(x <- 0 until xGridSize)
+			yield this(x, iy)
 
+
+	def insertStrip(o: Orientation, j: Int) =
+		if (o.isX) insertCol(j) else insertRow(j)
 
 	def insertCol(x: Int){
 		require(x >= 0 && x <= xGridSize)
@@ -297,14 +303,6 @@ class MetaGrid extends Displayable {
 		_blocks = insertInto(_blocks, x, _xGridSize)
 		_xGridSize += 1
 		xDimensionLists.insert(x)
-	}
-	
-	def deleteCol(x: Int){
-		require(x >= 0 && x < xGridSize)
-		dirtyLayout
-		_blocks = deleteFrom(_blocks, x, _xGridSize)
-		_xGridSize -= 1
-		xDimensionLists.delete(x)
 	}
 	
 	def insertRow(y: Int){
@@ -315,6 +313,18 @@ class MetaGrid extends Displayable {
 				_blocks(x) = insertInto(_blocks(x), y, _yGridSize)
 		_yGridSize += 1
 		yDimensionLists.insert(y)
+	}
+
+
+	def deleteStrip(o: Orientation, j: Int) =
+		if (o.isX) deleteCol(j) else deleteRow(j)
+
+	def deleteCol(x: Int){
+		require(x >= 0 && x < xGridSize)
+		dirtyLayout
+		_blocks = deleteFrom(_blocks, x, _xGridSize)
+		_xGridSize -= 1
+		xDimensionLists.delete(x)
 	}
 	
 	def deleteRow(y: Int){
@@ -338,16 +348,16 @@ class MetaGrid extends Displayable {
 */
 
 	private def dirtyLayout {
-		_orientationsCurrent = false
+		_positionsCurrent = false
 	}
 
-	private def ensureOrientations {
-		if (!_orientationsCurrent){
+	private def ensurePositions {
+		if (!_positionsCurrent){
 			for(col <- _blocks; if col != null; b <- col) b match {
-				case Some(block) => block.resetOrientation
+				case Some(block) => block.resetPosition
 				case _ => ;//ignore
 			}
-			_orientationsCurrent = true
+			_positionsCurrent = true
 		}
 	}
 
@@ -399,6 +409,39 @@ class MetaGrid extends Displayable {
 		result.toList
 	}
 
+	abstract class Strips {
+		def extent: Int
+		def depth: Int
+		def dimensionLists: DimensionListVector
+		def apply(j: Int, k: Int): DisplayBlock
+		def update(j: Int, k: Int, b: Option[DisplayBlock])
+		def apply(j: Int): Iterable[DisplayBlock]
+		def insert(j: Int)
+		def remove(j: Int)
+	}
 
-	
+	def strips(implicit o: Orientation) = o.choose(columns, rows)
+
+	object columns extends Strips {
+		def extent = xGridSize
+		def depth = yGridSize
+		def dimensionLists = xDimensionLists
+		def apply(x: Int, y: Int) = MetaGrid.this(x, y)
+		def update(x: Int, y: Int, b: Option[DisplayBlock]) = MetaGrid.this(x, y) = b
+		def apply(x: Int) = column(x)
+		def insert(x: Int) = insertCol(x)
+		def remove(x: Int) = deleteCol(x)
+	}
+
+	object rows extends Strips {
+		def extent = yGridSize
+		def depth = xGridSize
+		def dimensionLists = yDimensionLists
+		def apply(y: Int, x: Int) = MetaGrid.this(x, y)
+		def update(y: Int, x: Int, b: Option[DisplayBlock]) = MetaGrid.this(x, y) = b
+		def apply(y: Int) = row(y)
+		def insert(y: Int) = insertRow(y)
+		def remove(y: Int) = deleteRow(y)
+	}
+
 }

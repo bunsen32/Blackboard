@@ -24,8 +24,8 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 	var _currentTargetControl: Option[GridView] = None
 	var _dropTarget: DropTarget = NoDropTarget
 	var _pivotPoints: Set[DisplayBlock] = Set.empty
-	var _pivotColumns: Set[Int] = Set.empty
-	var _pivotRows: Set[Int] = Set.empty
+	var _pivotSrcStrips: Set[Int] = Set.empty
+	var _pivotDstStrips: Set[Int] = Set.empty
 
 	override def start(op: DragOperation, m: MouseDown) {
 		// TODO: we're dragging the 'selection', but the MouseDown(x,y) is relative
@@ -39,16 +39,17 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 
 	private def identifyPivotPoints = _block match {
 		case labs: DimensionLabelsBlock =>
-				allPivotsFrom(labs.displayDimension,
-							  if (labs.isXNotY) grid.column(_block.xIndex) else grid.row(_block.yIndex))
+			implicit val o = labs.orientation
+			allPivotsFrom(o, labs.displayDimension,
+						  grid.strips apply (_block.stripIndex))
 		case _ => {
 			_pivotPoints = Set.empty
-			_pivotColumns = Set.empty
-			_pivotRows = Set.empty
+			_pivotSrcStrips = Set.empty
+			_pivotDstStrips = Set.empty
 		}
 	}
 
-	private def allPivotsFrom(dd: DisplayDimension, initialCandidates: Iterable[DisplayBlock]) {
+	private def allPivotsFrom(o: Orientation, dd: DisplayDimension, initialCandidates: Iterable[DisplayBlock]) {
 		
 		def transitiveClosurePivotPoints(searchedXes: Set[Int], searchedYs: Set[Int], foundPivots: Set[DisplayBlock], candidates: Iterable[DisplayBlock]) {
 			val newPivots = candidates filter (b => !foundPivots.contains(b) && isPivot(b))
@@ -57,8 +58,8 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 			val newYs  = Set.empty ++ (lazyNewPivots.map(b => b.yIndex).filter(!searchedYs.contains(_)))
 			if (newPivots.isEmpty && newXes.isEmpty && newYs.isEmpty) {
 				_pivotPoints = foundPivots
-				_pivotColumns = searchedXes
-				_pivotRows = searchedYs
+				_pivotSrcStrips = o.choose(searchedXes, searchedYs)
+				_pivotDstStrips = o.choose(searchedYs, searchedXes)
 			
 			}else {
 				val newCandidates = (newXes flatMap (grid.column _)) ++ (newYs flatMap (grid.row _))
@@ -86,8 +87,8 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 			val modelOffset = control.viewToModel(offset)
 			val (xGap, dx) = grid.xDimensionLists.gapHitTest(modelOffset.x)
 			val (yGap, dy) = grid.yDimensionLists.gapHitTest(modelOffset.y)
-			val ix = if (dx < 0) xGap - 1 else xGap // -1 to max(horiz) + 1
-			val iy = if (dy < 0) yGap - 1 else yGap // -1 to max(vert) + 1
+			val ix = if (dx < 0) xGap - 1 else xGap // -1 .. max(horiz) + 1
+			val iy = if (dy < 0) yGap - 1 else yGap // -1 .. max(vert) + 1
 			val destX = if (selection.ix < xGap) xGap - 1 else xGap
 			val destY = if (selection.iy < yGap) yGap - 1 else yGap
 			val srcX = selection.ix
@@ -97,23 +98,22 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 
 			def rotationDropTarget: DropTarget = _block match {
 				case block: DimensionLabelsBlock => {
-					if (block.isXNotY)
-						if (iy >=0 && iy < grid.yDimensionLists.length &&
-							(ix != srcX || !preferHoriz) && iy != srcY &&
-							_pivotRows.contains(iy)) {
-							DimensionRotatedVertical(xGap)
+					val orient = block.orientation
+					val newOrient = orient.opposite
+					val strips = grid.strips(newOrient)
+					
+					val newStrip = newOrient.choose(ix, iy)
+					val newDepth = newOrient.choose(iy, ix)
+					val oldDepth = newOrient.choose(srcY, srcX)
+					
+					if (newStrip >= 0 && newStrip < strips.extent &&
+						(newDepth != oldDepth || preferHoriz == newOrient.isX) &&
+						_pivotDstStrips.contains(newStrip)) {
+						DimensionRotated(newOrient, newOrient.choose(yGap, xGap))
 
-						} else
-							NoDropTarget
+					} else
+						NoDropTarget
 							
-					else
-						if (ix >= 0 && ix < grid.xDimensionLists.length &&
-							(iy != srcY || preferHoriz) && ix != srcX &&
-							_pivotColumns.contains(ix)) {
-							DimensionRotatedHorizontal(yGap)
-						
-						}else
-							NoDropTarget
 				}
 				case _ => NoDropTarget
 			}
@@ -162,8 +162,7 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 			_dropTarget = newDropTarget
 			control.redraw
 			dragOperation.rotationRadians = newDropTarget match {
-				case _: DimensionRotatedHorizontal |
-					_:DimensionRotatedVertical => (Math.Pi/2D).toFloat
+				case _: DimensionRotated => (Math.Pi/2D).toFloat
 				case _ => 0F
 			}
 		}
@@ -173,8 +172,7 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 	case object NoDropTarget extends DropTarget
 	case class ColumnMovedTo(xGap: Int) extends DropTarget
 	case class RowMovedTo(yGap: Int) extends DropTarget
-	case class DimensionRotatedHorizontal(yGap: Int) extends DropTarget
-	case class DimensionRotatedVertical(xGap: Int) extends DropTarget
+	case class DimensionRotated(o: Orientation, gap: Int) extends DropTarget
 
 	object DropTargetRenderer extends Displayable {
 		override def render(gfx: DrawingContext, origin: Point) {
@@ -216,21 +214,18 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 					val w = grid.size.x
 					drawLine(0, y, w, y)
 				}
-				case DimensionRotatedHorizontal(yGap) => {
-					for(xCol <- _pivotColumns){
-						val x = grid.xDimensionLists.gapPosition(xCol)
-						val y = grid.yDimensionLists.gapPosition(yGap)
-						val w = DisplayDimension.widthOf(grid.xDimensionLists(xCol))
-						drawLine(x, y, x + w, y)
-					}
-					drawPivotPoints
-				}
-				case DimensionRotatedVertical(xGap) => {
-					for(yRow <- _pivotRows){
-						val x = grid.xDimensionLists.gapPosition(xGap)
-						val y = grid.yDimensionLists.gapPosition(yRow)
-						val h = DisplayDimension.widthOf(grid.yDimensionLists(yRow))
-						drawLine(x, y, x, y + h)
+				case DimensionRotated(o, gap) => {
+					val strips = grid.strips(o).dimensionLists
+					val gaps = grid.strips(o.opposite).dimensionLists
+
+					for(strip <- _pivotDstStrips){
+						val a = strips.gapPosition(strip)
+						val b = gaps.gapPosition(gap)
+						val w = DisplayDimension.widthOf(strips(strip))
+						if (o.isX)
+							drawLine(a, b, a + w, b)
+						else
+							drawLine(b, a, b, a + w)
 					}
 					drawPivotPoints
 				}
@@ -279,50 +274,28 @@ class BlockDragClient(control: GridView) extends GridViewDragClient(control) {
 					case _ =>;//ignore
 				}
 			}
-			case DimensionRotatedHorizontal(yGap) => {
+			case DimensionRotated(dstOrientation, gap) => {
+				val srcOrientation = dstOrientation.opposite
 				val dim = _block.asInstanceOf[DimensionLabelsBlock].displayDimension
-				val widthDimension = grid.xDimensionLists(_block.xIndex)
+				val widthDimension = grid.strips(dstOrientation).dimensionLists(_block.stripIndex(dstOrientation))
 				// Remove existing blocks
-				for (yRow <- _pivotRows) {
-					for(b <- grid.row(yRow)) b match {
-						case labs: DimensionLabelsBlock if (labs.displayDimension==dim) => grid(b.xIndex, yRow) = None
+				val srcStrips = grid.strips(srcOrientation)
+				for (s <- _pivotSrcStrips) {
+					for(b <- srcStrips(s)) b match {
+						case labs: DimensionLabelsBlock if (labs.displayDimension==dim) => srcStrips(s, b.stripDepth(srcOrientation)) = None
 						case _ => ;//ignore
 					}
-					val newRowDimensions = grid.reorderDisplayDimensions(grid.row(yRow))
-					grid.yDimensionLists(yRow) = if (newRowDimensions.isEmpty) widthDimension else newRowDimensions
+					val newStripDimensions = grid.reorderDisplayDimensions(srcStrips(s))
+					srcStrips.dimensionLists(s) = if (newStripDimensions.isEmpty) widthDimension else newStripDimensions
 				}
 				// Insert new row
-				grid.insertRow(yGap)
-				grid.yDimensionLists(yGap) = widthDimension
+				srcStrips.insert(gap)
+				srcStrips.dimensionLists(gap) = widthDimension
 				// Populate with new label blocks
-				for (xCol <- _pivotColumns) {
-					grid(xCol, yGap) = Some(new DimensionLabelsBlock(dim))
-					grid.xDimensionLists(xCol) = grid.reorderDisplayDimensions(grid.column(xCol))
-				}
-				// Tighten up any gaps
-				grid.compress
-				// Bob's your uncle
-				control.computeBounds
-			}
-			case DimensionRotatedVertical(xGap) => {
-				val dim = _block.asInstanceOf[DimensionLabelsBlock].displayDimension
-				val widthDimension = grid.yDimensionLists(_block.yIndex)
-				for(xCol <- _pivotColumns){
-					for(b <- grid.column(xCol)) b match {
-						case labs: DimensionLabelsBlock if (labs.displayDimension==dim) => grid(xCol, b.yIndex) = None
-						case _=> ;// ignore
-					}
-					val newColDimensions = grid.reorderDisplayDimensions(grid.column(xCol))
-					grid.xDimensionLists(xCol) = if(newColDimensions.isEmpty) widthDimension else newColDimensions
-				}
-				// Tighten up any gaps
-				// Insert new column
-				grid.insertCol(xGap)
-				grid.xDimensionLists(xGap) = widthDimension
-				// And add in new label blocks
-				for (yRow <- _pivotRows) {
-					grid(xGap, yRow) = Some(new DimensionLabelsBlock(dim))
-					grid.yDimensionLists(yRow) = grid.reorderDisplayDimensions(grid.row(yRow))
+				val dstStrips = grid.strips(dstOrientation)
+				for (d <- _pivotDstStrips) {
+					dstStrips(d, gap) = Some(new DimensionLabelsBlock(dim))
+					dstStrips.dimensionLists(d) = grid.reorderDisplayDimensions(dstStrips(d))
 				}
 				// Tighten up any gaps
 				grid.compress
