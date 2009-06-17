@@ -19,6 +19,14 @@ class DrawingContext(val gc: GC, val ui: UIState) {
 	def colorForRGB(col: RGB) =
 		resourceMap.getOrElseUpdate(col, register(new Color(gc.getDevice, col))).asInstanceOf[Color]
 
+	def font(family: String, size: Float, style: Int) = {
+		val key = (family, size.toInt, style)
+		resourceMap.getOrElseUpdate(
+			key,
+			register(new Font(gc.getDevice,
+							  family, size.toInt, style))).asInstanceOf[Font]
+	}
+
 	def newTransform = register(new Transform(gc.getDevice))
 
 	def register[R <: Resource](res: R) = {

@@ -3,6 +3,7 @@ package net.dysphoria.blackboard.ui
 import blackboard.data._
 import scala.collection.immutable
 import selection._
+import gfx._
 
 class TableBlock(table: Table) extends TabularBlock(table) {
 	var dimensionMap = immutable.Map.empty[DisplayDimension, Int]
@@ -21,4 +22,6 @@ class TableBlock(table: Table) extends TabularBlock(table) {
 		}
 		case _ => super.cellIsSelected(ui, indices)
 	}
+
+	defaultCellStyle.textAlign = TextAlignRight
 }

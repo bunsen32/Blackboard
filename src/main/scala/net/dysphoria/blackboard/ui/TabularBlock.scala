@@ -104,7 +104,7 @@ abstract class TabularBlock(val table: Table) extends DisplayBlock {
 			}
 
 		}else
-			renderCell(gfx, bounds, indices)
+			renderCell(gfx, bounds, indices, defaultCellStyle)
 	}
 
 	def drawSeparator(gfx: DrawingContext, d: DisplayDimension, x0: Int, y0: Int, x1: Int, y1: Int){
@@ -122,15 +122,35 @@ abstract class TabularBlock(val table: Table) extends DisplayBlock {
 	val yellow = new RGB(255, 255, 0)
 	val lightYellow = new RGB(255, 255, 200)
 
-	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Array[Int]) {
-		val value = table.applyByIndex(indices)
+	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Array[Int], cellStyle: CellStyle) {
+		val value = table.valueToString(table.applyByIndex(indices))
 
 		import gfx._
 		withclip(bounds){
-			gc.setBackground(gfx.colorForRGB(cellIsSelected(gfx.ui, indices) match {case 0 => white;case 1=>lightYellow; case _ => yellow}))
+			val selectFactor = cellIsSelected(gfx.ui, indices) match {case 0 => 0F;case 1=>0.33333F; case _ => 1F}
+			val bg = Style.mix(cellStyle.backgroundColor, selectFactor, yellow)
+			gc.setBackground(gfx.colorForRGB(bg))
 			gc.fillRectangle(bounds)
-			gc.setForeground(gfx.colorForRGB(black))
-			gc.drawString(value.toString, bounds.x, bounds.y+2, true)
+			gc.setForeground(gfx.colorForRGB(cellStyle.color))
+			gc.setFont(gfx.font(cellStyle.fontFamily, cellStyle.fontSize, cellStyle.fontStyle))
+			val fm = gc.getFontMetrics
+			val h = fm.getAscent + fm.getDescent
+			val y = (bounds.height - h)/2
+			val x = 
+				if (cellStyle.textAlign == TextAlignLeft)
+					cellStyle.marginLeft
+				else{
+					val w = gc.stringExtent(value).x
+					if (cellStyle.textAlign == TextAlignCenter)
+						(bounds.width - w)/2
+
+					else if (cellStyle.textAlign == TextAlignRight)
+						bounds.width - cellStyle.marginRight - w
+
+					else
+						error("Unrecognised textAlign value "+cellStyle.textAlign)
+				}
+			gc.drawString(value, bounds.x+x, bounds.y+y, true)
 		}
 	}
 
@@ -165,4 +185,11 @@ abstract class TabularBlock(val table: Table) extends DisplayBlock {
 		case _ => 0
 	}
 
+	val defaultCellStyle = new CellStyle
+
+	{
+		import defaultCellStyle._
+		marginLeft = 2
+		marginRight= 2
+	}
 }

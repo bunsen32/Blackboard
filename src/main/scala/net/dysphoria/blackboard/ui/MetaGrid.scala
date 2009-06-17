@@ -237,16 +237,13 @@ class MetaGrid extends Displayable {
 	 */
 	def compress {
 		for(y <- (0 until yGridSize).reverse)
-			if (row(y) forall (_.isInstanceOf[EmptyBlock]))
+			if (rows(y) forall (_.isInstanceOf[EmptyBlock]))
 				deleteRow(y)
 		for(x <- (0 until xGridSize).reverse)
-			if (column(x) forall (_.isInstanceOf[EmptyBlock]))
+			if (columns(x) forall (_.isInstanceOf[EmptyBlock]))
 				deleteCol(x)
 	}
 
-
-	def strip(o: Orientation, j: Int) =
-		if (o.isX) column(j) else row(j)
 
 	def column(ix: Int): Seq.Projection[DisplayBlock] =
 		for(y <- 0 until yGridSize)
@@ -256,9 +253,6 @@ class MetaGrid extends Displayable {
 		for(x <- 0 until xGridSize)
 			yield this(x, iy)
 
-
-	def insertStrip(o: Orientation, j: Int) =
-		if (o.isX) insertCol(j) else insertRow(j)
 
 	def insertCol(x: Int){
 		require(x >= 0 && x <= xGridSize)
@@ -279,9 +273,6 @@ class MetaGrid extends Displayable {
 	}
 
 
-	def deleteStrip(o: Orientation, j: Int) =
-		if (o.isX) deleteCol(j) else deleteRow(j)
-
 	def deleteCol(x: Int){
 		require(x >= 0 && x < xGridSize)
 		dirtyLayout
@@ -300,15 +291,6 @@ class MetaGrid extends Displayable {
 		yDimensionLists.delete(y)
 	}
 
-
-/*	private def ensureOrientations {
-		if (!_orientationsCurrent) {
-			for(x <- 0 until xGridSize; y <- 0 until yGridSize)
-				apply(x, y).setOrientation(this, x, y)
-			_orientationsCurrent = true
-		}
-	}
-*/
 
 	private def dirtyLayout {
 		_positionsCurrent = false

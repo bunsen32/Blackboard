@@ -40,12 +40,22 @@ object Test {
 		dd0.defaultItemWidth = 30
 		dd0.interItemLine = Some(new LineDescriptor(new graphics.RGB(40, 40, 40), 1))
 
-		val d1 = new ConcreteIntegerRangeDimension(1 to 10)
+		val d1 = new ConcreteIntegerRangeDimension(1 to 10) {
+			override def valueToString(value: Any) = value match {
+				case i: Int if (i >= 1 && i <= 26) => ('A'+i-1).toChar.toString
+				case _ => super.valueToString(value)
+			}
+		}
 		val dd1 = new DisplayDimension(d1)
 		dd1.defaultItemWidth = 26
 		dd1.interItemLine = Some(new LineDescriptor(new graphics.RGB(40, 40, 40), 2))
 
-		val d2 = new ConcreteIntegerRangeDimension(1 to 2)
+		val d2 = new ConcreteIntegerRangeDimension(1 to 2){
+			override def valueToString(value: Any) = value match {
+				case i: Int if (i >= 1 && i <= 2) => if (i == 1) "i" else "ii"
+				case _ => super.valueToString(value)
+			}
+		}
 		val dd2 = new DisplayDimension(d2)
 		dd2.interItemLine = Some(new LineDescriptor(new graphics.RGB(160, 160, 160), 1))
 		dd2.defaultItemWidth = 26

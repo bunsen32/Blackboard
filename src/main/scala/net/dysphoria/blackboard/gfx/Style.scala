@@ -16,4 +16,16 @@ object Style {
 	val BlockFillAlpha = 128
 
 	val DropInsertionLine = new LineDescriptor(new RGB(255, 0, 0), 2F)
+
+	// Probably these don't belong here, but will have to wait until I create
+	// some proper colour-mixing/compositing classes:
+
+	def mix(a: RGB, factor: Float, b: RGB) = {
+		require(factor >= 0F && factor <= 1F)
+		val inverse = 1F - factor
+		new RGB(
+			(a.red * inverse + b.red * factor).toInt,
+			(a.green * inverse + b.green * factor).toInt,
+			(a.blue * inverse + b.blue * factor).toInt)
+	}
 }

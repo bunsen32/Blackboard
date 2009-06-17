@@ -10,6 +10,7 @@ package net.dysphoria.blackboard.data
 abstract class Table extends Function {
 	def applyByIndex(ixs: Seq[Int]): Any
 	def dimensions: Seq[Dimension]
+	def valueToString(value: Any) = value.toString
 }
 
 abstract class ByIndexTable extends Table {

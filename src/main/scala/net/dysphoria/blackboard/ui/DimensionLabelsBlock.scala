@@ -1,5 +1,6 @@
 package net.dysphoria.blackboard.ui
 
+import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics._
 import blackboard.data._
 import blackboard.gfx._
@@ -35,5 +36,14 @@ class DimensionLabelsBlock(val displayDimension: DisplayDimension)
 			yCoords(yDimensions indexOf displayDimension)
 	}
 
+	
+	{ // Default header style:
+		import defaultCellStyle._
+
+		backgroundColor = new RGB(90, 90, 180)
+		color = new RGB(0, 0, 0)
+		textAlign = TextAlignCenter
+		fontStyle = SWT.BOLD
+	}
 }
 
