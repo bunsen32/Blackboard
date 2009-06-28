@@ -12,7 +12,7 @@
 		<scala.version>2.7.4.final</scala.version>
 	</properties>
 	
-	<repositories>
+	<!--repositories>
 		<repository>
 			<id>scala-tools.org</id>
 			<name>Scala-tools Maven2 Repository</name>
@@ -26,7 +26,7 @@
 			<name>Scala-tools Maven2 Repository</name>
 			<url>http://scala-tools.org/repo-releases</url>
 		</pluginRepository>
-	</pluginRepositories>
+	</pluginRepositories-->
 	
 	<dependencies>
 		<dependency>
