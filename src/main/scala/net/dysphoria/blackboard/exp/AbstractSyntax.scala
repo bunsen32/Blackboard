@@ -65,19 +65,6 @@ case class Case[-P<:ALLPHASES](pattern: Pattern[P], result: Exp[P])
 case class Pattern[-P<:ALLPHASES]
 abstract class Identifier(val name: String, val typ: Type) {
 	assume(name.length > 0)
-	def precedence = name(0) match {
-		// The ternary operator has precedence 0
-		case c if Character.isLetter(c) => 1 // (SECOND-)LOWEST PRECEDENCE
-		case '|' => 2
-		case '^' => 3
-		case '&' => 4
-		case '<' | '>' | '≥' | '≤' => 5
-		case '=' | '!' => 6
-		case ':' => 7
-		case '+' | '-' => 8
-		case '*' | '/' | '%' | '×' | '÷' => 9
-		case _ => 10		// HIGHEST PRECEDENCE
-	}
 }
 class Param(name: String, typ: Type) extends Identifier(name, typ) {
 	override def toString = name
@@ -130,5 +117,22 @@ object ExpressionToString {
 		case e => error("Other: "+e.getClass.toString)
 	}
 	
+}
+
+object Precedence {
+	def ofTernaryOperator = 0
+	def of(ident: Identifier): Int = ident.name(0) match {
+		case c if Character.isLetter(c) => 1 // (SECOND-)LOWEST PRECEDENCE
+		case '|' => 2
+		case '^' => 3
+		case '&' => 4
+		case '<' | '>' | '≥' | '≤' => 5
+		case '=' | '!' => 6
+		case ':' => 7
+		case '+' | '-' => 8
+		case '*' | '/' | '%' | '×' | '÷' => 9
+		case _ => 10		// HIGHEST PRECEDENCE
+	}
+	def ofFunctionApplication = 10
 }
 

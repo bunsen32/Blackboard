@@ -73,7 +73,7 @@ object NameResolver {
 			
 			case a::(op:ResolvedRef)::rest if op.infix => {
 				if (rest == Nil) throw new Exception(op+" is an infix operator, so must have another expression after it")
-				val prec = op.ident.precedence
+				val prec = Precedence.of(op.ident)
 				assert(prec != Int.MinValue) // Otherwise we might not consume all of the expression.
 				if (prec > outerPrecedence){
 					val (b::restofrest) = orderEvaluation(rest)(prec)
@@ -86,7 +86,7 @@ object NameResolver {
 
 			case p::(tern:TernaryTail[RESOLV])::rest => {
 				assume(rest == Nil, "Should be nothing after a ternary-tail")
-				val prec = tern.precedence
+				val prec = Precedence.ofTernaryOperator
 				if (prec > outerPrecedence){
 					If(p, tern.ifTrue, tern.ifFalse)::Nil
 
@@ -96,8 +96,8 @@ object NameResolver {
 			}
 
 			case f::rest => {
-				val (args::restofrest) = orderEvaluation(rest)
-				Apply(f, args)::restofrest
+				val (args::restofrest) = orderEvaluation(rest)(Precedence.ofFunctionApplication)
+				orderEvaluation(Apply(f, args)::restofrest)
 			}
 		}
 	}
