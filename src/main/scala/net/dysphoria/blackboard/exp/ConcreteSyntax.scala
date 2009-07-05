@@ -44,6 +44,7 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object Each extends Keyword("each")
 	case object In extends Keyword("in")
 	case object Question extends Keyword("?")
+	case object Colon extends Keyword(":")
 	case object If extends Keyword("if")
 	case object Else extends Keyword("else")
 	case object Match extends Keyword("match")
@@ -54,7 +55,6 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object Dot extends Punctuation(".")
 	case object Comma extends Punctuation(",")
 	case object Semicolon extends Punctuation(";")
-	case object Colon extends Punctuation(":")
 	case object OpenBracket extends Punctuation("[")
 	case object OpenBrace extends Punctuation("{")
 	case object OpenParen extends Punctuation("(")
@@ -62,6 +62,6 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object CloseBrace extends Punctuation("}")
 	case object CloseBracket extends Punctuation("]")
 
-	val allKeywords = Set(Infix, Function, Var, Equals, GoesTo, Implies, Implements, Extends, Class, Type, Trait, With, For, In, Question, If, Else, Match)
-	val punctuation = Set(Dot, Comma, Semicolon, Colon, OpenBracket, OpenBrace, OpenParen, CloseParen, CloseBrace, CloseBracket)
+	val allKeywords = Set(Infix, Function, Var, Equals, GoesTo, Implies, Implements, Extends, Class, Type, Trait, With, For, In, Question, Colon, If, Else, Match)
+	val punctuation = Set(Dot, Comma, Semicolon, OpenBracket, OpenBrace, OpenParen, CloseParen, CloseBrace, CloseBracket)
 }

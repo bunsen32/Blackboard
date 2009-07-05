@@ -24,7 +24,7 @@ object Tokeniser extends Lexical with ConcreteSyntax with ImplicitConversions {
 	 * > DASH_PUNCTUATION, except for ASCII 'hyphen'
 	 */
 	def symbol = not(startOfComment)~>elem("symbol", c =>
-		("-_?~!*^/&@^%".indexOf(c) != -1) ||
+		("-_?~!*^/&@:^%".indexOf(c) != -1) ||
 		(Character.getType(c) match {
 			case Character.CURRENCY_SYMBOL => true
 			case Character.MATH_SYMBOL => true
