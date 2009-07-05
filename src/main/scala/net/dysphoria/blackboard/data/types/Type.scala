@@ -36,7 +36,10 @@ class Monomorphic(name: String) extends Constr(name) {
 	override def toString = name
 }
 
+object Unit extends Monomorphic("Unit")
 object Boolean extends Monomorphic("Boolean")
 object Int extends Monomorphic("Int")
+object Rational extends Monomorphic("Rational")
 object Real extends Monomorphic("Real")
 object Complex extends Monomorphic("Complex")
+
