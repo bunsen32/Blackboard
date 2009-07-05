@@ -103,7 +103,7 @@ object ExpressionToString {
 
 	def apply[P<:ALLPHASES](exp: Exp[P]): String = exp match {
 		case Dereference(ident) => ident
-		case If(pred, a, b) => "if ("+apply(pred)+") "+apply(a)+" else "+apply(b)
+		case If(pred, a, b) => "if "+withParens(pred)+" "+apply(a)+" else "+apply(b)
 		case Match(param, cases@_*) => apply(param)+" match {}"
 		case Scope(result, defs@_*) => "{" + defs.mkString("\n") + apply(result)+"}"
 		case Lambda(body, params@_*) => "function("+params.mkString(",")+") = "+apply(body)
@@ -131,8 +131,8 @@ object Precedence {
 		case ':' => 7
 		case '+' | '-' => 8
 		case '*' | '/' | '%' | '×' | '÷' => 9
-		case _ => 10		// HIGHEST PRECEDENCE
+		case _ => 10		// HIGHEST PRECEDENCE (other symbols)
 	}
-	def ofFunctionApplication = 10
+	def ofFunctionApplication = 11
 }
 
