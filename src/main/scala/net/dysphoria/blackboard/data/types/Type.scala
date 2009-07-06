@@ -15,9 +15,9 @@ class NamedVariable(name: String) extends Variable {
 	override def toString = name
 }
 
-case class Constr(name: String, args: Type*) extends Type
+case class Constr(name: String, args: Seq[Type]) extends Type
 
-class InfixConstr(arg1: Type, name: String, arg2: Type) extends Constr(name, arg1, arg2) {
+class InfixConstr(arg1: Type, name: String, arg2: Type) extends Constr(name, Array(arg1, arg2)) {
 	override def toString = bracketIfInfix(arg1) +" "+ name +" "+ arg2
 
 	private def bracketIfInfix(t: Type): String = t match {
@@ -26,13 +26,13 @@ class InfixConstr(arg1: Type, name: String, arg2: Type) extends Constr(name, arg
 	}
 }
 
-class Function(arg: Type, res: Type) extends InfixConstr(arg, "→", res)
+class Function(val arg: Type, val res: Type) extends InfixConstr(arg, "→", res)
 
-class Tuple(args: Type*) extends Constr("×", args: _*) {
+class Tuple(args: Seq[Type]) extends Constr("×", args) {
 	override def toString = args.mkString("(", ", ", ")")
 }
 
-class Monomorphic(name: String) extends Constr(name) {
+class Monomorphic(name: String) extends Constr(name, Nil) {
 	override def toString = name
 }
 
@@ -42,4 +42,6 @@ object Int extends Monomorphic("Int")
 object Rational extends Monomorphic("Rational")
 object Real extends Monomorphic("Real")
 object Complex extends Monomorphic("Complex")
+
+object String extends Monomorphic("String")
 

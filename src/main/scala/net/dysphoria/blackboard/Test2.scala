@@ -41,6 +41,8 @@ object Test2 {
 				println(exp)
 				val resolved = NameResolver.resolve(exp)(BuiltIn)
 				println(resolved)
+				val typ = Typer.analyse(resolved)
+				println(typ)
 			}
 			case failure => println(failure)
 		}

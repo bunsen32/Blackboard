@@ -19,13 +19,20 @@ object BuiltIn extends Env {
 		"Complex" -> Complex,
 	)
 
+	val IntInt = new Tuple(Array(Int, Int))
+	val FIntIntToInt = new Function(IntInt, Int)
+	val FIntIntToBoolean = new Function(IntInt, Boolean)
+	val StringString = new Tuple(Array(String, String))
+	val FStringStringToString = new Function(StringString, String)
 	val localDefs = Map.empty ++ List(
-		"+" -> new FunctionDefn("+", true, new Function(new Tuple(Int, Int), Int), Const((p:(Int, Int)) => p._1+p._2)),
-		"*" -> new FunctionDefn("*", true, new Function(new Tuple(Int, Int), Int), Const((p:(Int, Int)) => p._1*p._2)),
-		"-" -> new FunctionDefn("-", true, new Function(new Tuple(Int, Int), Int), Const((p:(Int, Int)) => p._1-p._2)),
-		"/" -> new FunctionDefn("/", true, new Function(new Tuple(Int, Int), Int), Const((p:(Int, Int)) => p._1/p._2)),
-		"&" -> new FunctionDefn("&", true, new Function(new Tuple(Int, Int), Int), Const((p:(Int, Int)) => p._1&p._2)),
-		"|" -> new FunctionDefn("|", true, new Function(new Tuple(Int, Int), Int), Const((p:(Int, Int)) => p._1|p._2)),
+		"+" -> new FunctionDefn("+", true, FIntIntToInt, Const((p:(Int, Int)) => p._1+p._2, FIntIntToInt)),
+		"*" -> new FunctionDefn("*", true, FIntIntToInt, Const((p:(Int, Int)) => p._1*p._2, FIntIntToInt)),
+		"-" -> new FunctionDefn("-", true, FIntIntToInt, Const((p:(Int, Int)) => p._1-p._2, FIntIntToInt)),
+		"/" -> new FunctionDefn("/", true, FIntIntToInt, Const((p:(Int, Int)) => p._1/p._2, FIntIntToInt)),
+		"&" -> new FunctionDefn("&", true, FIntIntToInt, Const((p:(Int, Int)) => p._1&p._2, FIntIntToInt)),
+		"|" -> new FunctionDefn("|", true, FIntIntToInt, Const((p:(Int, Int)) => p._1|p._2, FIntIntToInt)),
+		"=" -> new FunctionDefn("=", true, FIntIntToBoolean, Const((p:(Int, Int)) => p._1==p._2, FIntIntToBoolean)),
+		"append"-> new FunctionDefn("append", false, FStringStringToString, Const((p:(String, String))=> p._1+p._2, FStringStringToString)),
 	)
 
 	def defs(key: String) =

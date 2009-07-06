@@ -28,20 +28,24 @@ object GrammarParser extends TokenParsers {
 
 	import lexical._
 
-	// Definitions
+	// Conversions
 
 	implicit def acc(t: Elem): Parser[Elem] = acceptIf(_ == t)("‘"+t+"’ expected, but "+ _ +" found")
 	implicit def optionTypeToVar(optT: Option[types.Type]) =
 		optT.getOrElse(new types.Variable)
 
 
-	// Expressions
+	// EXPRESSIONS
+	
 	type ParserExp = Parser[Exp[PARSE]]
 
-	def exp: ParserExp = term~rep(term|ternarytail)~opt(Colon~>typeexp) ^^
-		{case head~tail~opttyp => Evaluation(head::tail)}
+	def expblock: ParserExp = OpenBrace~>definitions~Semicolon~exp<~CloseBrace ^^
+		{case defs~Semicolon~exp => Scope(exp, defs:_*)}
+	def exp: ParserExp = term~rep(term)~opt(ternarytail)~opt(Colon~>typeexp) ^^
+		{case head~tail~ternary~opttyp => Evaluation(head::tail, ternary)}
 	def term: ParserExp = (
-		bracketed
+		expblock
+	|	bracketed
 	//|	seq_exp
 		// Inside an expression, allow use of '=' as an operator:
 	|	Equals ^^ {case Equals => Dereference("=")}
@@ -53,22 +57,23 @@ object GrammarParser extends TokenParsers {
 
 	def bracketed = OpenParen~>repsep(exp,Comma)<~CloseParen ^^ {
 		case exps => exps.lengthCompare(1) match {
-			case x if x<0 => Const(())
+			case x if x<0 => Const((), types.Unit)
 			case x if x==0=> exps(0)
 			case x if x>0 => TupleExp(exps:_*)
 		}
 	}
 	def bracketedsingleexp = OpenParen ~> exp <~ CloseParen
-	def block = OpenBrace ~> exp <~ CloseBrace
 	def deref = accept("name reference", {case Ident(n) => Dereference(n)})
 	def ifthenelse = If~bracketedsingleexp~exp~Else~exp ^^
 		{case If~cond~truePath~Else~falsePath => new If(cond, truePath, falsePath)}
 	def ternarytail = Question~exp~Colon~exp ^^
 		{case Question~x~Colon~y => TernaryTail(x, y)}
 
-	def value = val_string | val_number
-	def val_number = accept("number", {case DigitString(n) => Const(n.toInt)})
-	def val_string = accept("string", {case CharString(n) => Const(n)})
+	def value = val_string | val_number | val_true | val_false
+	def val_number = accept("number", {case DigitString(n) => Const(n.toInt, types.Int)})
+	def val_string = accept("string", {case CharString(n) => Const(n, types.String)})
+	def val_true = (True ^^^ Const(true, types.Boolean))
+	def val_false= (False ^^^Const(false,types.Boolean))
 
 	// For comprehensions
 
@@ -81,7 +86,13 @@ object GrammarParser extends TokenParsers {
 	def seq_elements = repsep(exp, Comma)
 
 
-	def definitions = rep(defn_var | defn_fn | defn_infix_fn)
+	// DEFINITIONS
+
+	def definitions = opt(definition~rep(opt(Semicolon)~>definition)) ^^ {
+		case None => List()
+		case Some(def1~rest) => def1::rest
+	}
+	def definition = defn_var | defn_fn | defn_infix_fn
 
 	// Variables
 
@@ -93,7 +104,7 @@ object GrammarParser extends TokenParsers {
 
 	def defn_infix_fn = Function~>formalparamsingle~!defname~!formalparamsingle~!opt(typeannot)~!functionbody ^^ {
 		case param1~name~param2~res~body => {
-			val argtype = new types.Tuple(Array(param1.typ, param2.typ): _*)
+			val argtype = new types.Tuple(Array(param1.typ, param2.typ))
 			val params = Array(param1, param2)
 			new FunctionDefn(name, true,
 							 new types.Function(argtype, res),
@@ -113,7 +124,7 @@ object GrammarParser extends TokenParsers {
 		params.lengthCompare(1) match {
 			case x if x<0 => types.Unit
 			case x if x==0=> params(0)
-			case x if x>0 => new types.Tuple(params: _*)
+			case x if x>0 => new types.Tuple(params)
 		}
 
 	def defname = accept("name definition", {
@@ -124,9 +135,10 @@ object GrammarParser extends TokenParsers {
 	def formalparamlist = OpenParen~>repsep(formalparam, Comma)<~CloseParen
 	def formalparam = defname~opt(typeannot) ^^
 		{case ident~optionalType => new Param(ident, optionalType)}
-	def functionbody = Equals~>(exp|block) | block
+	def functionbody = Equals~>exp | expblock
 
-	// Types
+	
+	// TYPES
 
 	/** A type annotation on an expression/variable/parameter/function. */
 	def typeannot = Colon~>typeexp
@@ -140,9 +152,9 @@ object GrammarParser extends TokenParsers {
 	
 	def tupletype = OpenParen~>repsep(typeexp, Comma)<~CloseParen ^^
 		(list => list.lengthCompare(1) match {
-			case x if x<0 => throw new ParseError("Empty brackets are not a valid type")
+			case x if x<0 => throw new ParseError("Empty brackets are not a valid type. (Did you mean ‘Unit’?)")
 			case 0 => list(0)
-			case x if x>0 => new types.Tuple(list: _*)
+			case x if x>0 => new types.Tuple(list)
 		})
 
 	def composeFunctionType(head: types.Type, tail: List[types.Type]): types.Type = tail match {

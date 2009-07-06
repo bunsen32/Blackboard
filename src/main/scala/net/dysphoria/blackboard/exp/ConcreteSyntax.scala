@@ -48,6 +48,8 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object If extends Keyword("if")
 	case object Else extends Keyword("else")
 	case object Match extends Keyword("match")
+	case object True extends Keyword("true")
+	case object False extends Keyword("false")
 
 	case class Punctuation(override val chars: String) extends Token{
 		override def toString = "Punct-"+chars
@@ -62,6 +64,6 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object CloseBrace extends Punctuation("}")
 	case object CloseBracket extends Punctuation("]")
 
-	val allKeywords = Set(Infix, Function, Var, Equals, GoesTo, Implies, Implements, Extends, Class, Type, Trait, With, For, In, Question, Colon, If, Else, Match)
+	val allKeywords = Set(Infix, Function, Var, Equals, GoesTo, Implies, Implements, Extends, Class, Type, Trait, With, For, In, Question, Colon, If, Else, Match, True, False)
 	val punctuation = Set(Dot, Comma, Semicolon, OpenBracket, OpenBrace, OpenParen, CloseParen, CloseBrace, CloseBracket)
 }
