@@ -24,6 +24,7 @@ sealed abstract class Exp[-P<:ANYPHASE] {
 	var resolvedType: Option[Type] = None
 	override def toString = ExpressionToString(this)
 }
+
 case class If[-P<:ANYPHASE](pred: Exp[P], ifTrue: Exp[P], ifFalse: Exp[P]) extends Exp[P]
 case class Match[-P<:ANYPHASE](param: Exp[P], cases: Case[P]*) extends Exp[P]
 case class TupleExp[-P<:ANYPHASE](terms: Exp[P]*) extends Exp[P]

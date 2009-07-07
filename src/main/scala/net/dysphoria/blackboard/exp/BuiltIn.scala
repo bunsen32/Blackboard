@@ -25,14 +25,14 @@ object BuiltIn extends Env {
 	val StringString = new Tuple(Array(String, String))
 	val FStringStringToString = new Function(StringString, String)
 	val localDefs = Map.empty ++ List(
-		"+" -> new FunctionDefn("+", true, FIntIntToInt, Const((p:(Int, Int)) => p._1+p._2, FIntIntToInt)),
-		"*" -> new FunctionDefn("*", true, FIntIntToInt, Const((p:(Int, Int)) => p._1*p._2, FIntIntToInt)),
-		"-" -> new FunctionDefn("-", true, FIntIntToInt, Const((p:(Int, Int)) => p._1-p._2, FIntIntToInt)),
-		"/" -> new FunctionDefn("/", true, FIntIntToInt, Const((p:(Int, Int)) => p._1/p._2, FIntIntToInt)),
-		"&" -> new FunctionDefn("&", true, FIntIntToInt, Const((p:(Int, Int)) => p._1&p._2, FIntIntToInt)),
-		"|" -> new FunctionDefn("|", true, FIntIntToInt, Const((p:(Int, Int)) => p._1|p._2, FIntIntToInt)),
-		"=" -> new FunctionDefn("=", true, FIntIntToBoolean, Const((p:(Int, Int)) => p._1==p._2, FIntIntToBoolean)),
-		"append"-> new FunctionDefn("append", false, FStringStringToString, Const((p:(String, String))=> p._1+p._2, FStringStringToString)),
+		"+" -> nativeFunction("+", true, FIntIntToInt, p => p[Int](0)+p[Int](1)),
+		"*" -> nativeFunction("*", true, FIntIntToInt, p => p[Int](0)*p[Int](1)),
+		"-" -> nativeFunction("-", true, FIntIntToInt, p => p[Int](0)-p[Int](1)),
+		"/" -> nativeFunction("/", true, FIntIntToInt, p => p[Int](0)/p[Int](1)),
+		"&" -> nativeFunction("&", true, FIntIntToInt, p => p[Int](0)&p[Int](1)),
+		"|" -> nativeFunction("|", true, FIntIntToInt, p => p[Int](0)|p[Int](1)),
+		"=" -> nativeFunction("=", true, FIntIntToBoolean, p => p[Int](0)==p[Int](1)),
+		"append"-> nativeFunction("append", false, FStringStringToString, p=> p[String](0)+p[String](1)),
 	)
 
 	def defs(key: String) =
@@ -40,4 +40,8 @@ object BuiltIn extends Env {
 	def typeDefs(key: String) =
 		localTypeDefs.getOrElse(key, NullEnv.typeDefs(key))
 
+	def nativeFunction(name: String, infix: Boolean, typ: Function, op: NativeParams=>Any) = {
+		assume(typ.arg.asInstanceOf[Tuple].args.length > 1)
+		new FunctionDefn(name, infix, typ, Const(NativeFunctionN(op), typ))
+	}
 }

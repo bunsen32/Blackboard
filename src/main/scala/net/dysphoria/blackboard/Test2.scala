@@ -38,11 +38,20 @@ object Test2 {
 		val in = StreamReader(Console.in)
 		GrammarParser.parseExpression(in) match {
 			case GrammarParser.Success(exp, _) => {
+				println("PARSED:")
 				println(exp)
+
 				val resolved = NameResolver.resolve(exp)(BuiltIn)
+				println("\nRESOLVED:")
 				println(resolved)
+				
 				val typ = Typer.analyse(resolved)
+				println("\nTYPED:")
 				println(typ)
+
+				val result = TreeEvaluator.eval(resolved)
+				println("\nEVALUATED:")
+				println(result)
 			}
 			case failure => println(failure)
 		}

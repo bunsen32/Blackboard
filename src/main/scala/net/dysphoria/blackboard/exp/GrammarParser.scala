@@ -39,8 +39,10 @@ object GrammarParser extends TokenParsers {
 	
 	type ParserExp = Parser[Exp[PARSE]]
 
-	def expblock: ParserExp = OpenBrace~>definitions~Semicolon~exp<~CloseBrace ^^
-		{case defs~Semicolon~exp => Scope(exp, defs:_*)}
+	def expblock: ParserExp = OpenBrace~>opt(definitions<~Semicolon)~exp<~CloseBrace ^^ {
+		case Some(defs)~exp => Scope(exp, defs:_*)
+		case None~exp => exp
+	}
 	def exp: ParserExp = term~rep(term)~opt(ternarytail)~opt(Colon~>typeexp) ^^
 		{case head~tail~ternary~opttyp => Evaluation(head::tail, ternary)}
 	def term: ParserExp = (
@@ -52,6 +54,7 @@ object GrammarParser extends TokenParsers {
 	|	deref
 	|	value
 	|	ifthenelse
+	|	anon_fn
 	|	failure("Not a valid expression term"))
 
 
@@ -117,6 +120,11 @@ object GrammarParser extends TokenParsers {
 			new FunctionDefn(name, false,
 							 new types.Function(argtype, res),
 							 Lambda(body, paramlist: _*))
+		}
+	}
+	def anon_fn = Function~>formalparamlist~!opt(typeannot)~!functionbody ^^ {
+		case paramlist~res~body => {
+			Lambda(body, paramlist: _*)
 		}
 	}
 	
