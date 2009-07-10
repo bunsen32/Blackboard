@@ -16,21 +16,24 @@ import scala.collection.mutable
 object TreeEvaluator {
 	type Expr = Exp[RESOLV]
 
-	def eval(exp: Expr): Any = evalRec(exp)(GlobalFrame)
-	def evalRec(exp: Expr)(implicit frame: StackFrame): Any = exp match {
+	def eval(exp: Expr): Any = evalRec(exp, GlobalFrame)
+	def evalRec(exp: Expr, frame: StackFrame): Any = (exp: @unchecked) match {
 		case Const(v, _) => v
 
 		case ResolvedRef(id) => frame.deref(id)
 
 		case If(pred, trueExp, falseExp) =>
-			if(evalRec(pred) == true) evalRec(trueExp) else evalRec(falseExp)
+			if(evalRec(pred, frame) == true)
+				evalRec(trueExp, frame)
+			else
+				evalRec(falseExp, frame)
 
 		case t: TupleExp[RESOLV] => {
 			new Tup((for(term <- t.terms) yield new IndirectThunk(term, frame)).toArray)
 		}
 
 		case Apply(fn, arg) => {
-			evalRec(fn) match {
+			evalRec(fn, frame) match {
 				case f: Execution0 => f()
 				case f: Execution1 => f(frame.thunk(arg))
 				case f: ExecutionN => f(frame.thunk(arg))
@@ -50,7 +53,7 @@ object TreeEvaluator {
 		}
 
 		case s: Scope[RESOLV] => {
-			evalRec(s.body)(new ScopeFrame(frame, s))
+			evalRec(s.body, new ScopeFrame(frame, s))
 		}
 	}
 
@@ -62,15 +65,15 @@ object TreeEvaluator {
 	}
 
 	class Execution0(fun: Lambda[RESOLV], static: StackFrame) extends Function0[Any] {
-		def apply() = evalRec(fun.body)(static)
+		def apply() = evalRec(fun.body, static)
 	}
 
 	class Execution1(fun: Lambda[RESOLV], static: StackFrame) extends Function1[Thunk, Any] {
-		def apply(arg: Thunk) = evalRec(fun.body)(new CallFrame1(static, fun, arg))
+		def apply(arg: Thunk) = evalRec(fun.body, new CallFrame1(static, fun, arg))
 	}
 
 	class ExecutionN(fun: Lambda[RESOLV], static: StackFrame) extends Function1[Thunk, Any] {
-		def apply(arg: Thunk) = evalRec(fun.body)(new CallFrameN(static, fun, arg))
+		def apply(arg: Thunk) = evalRec(fun.body, new CallFrameN(static, fun, arg))
 	}
 
 	abstract class StackFrame {
@@ -100,7 +103,7 @@ object TreeEvaluator {
 			case _ => new IndirectThunk(exp, this)
 		}
 		def deref(id: Identifier) = id match {
-			case d: Defn if ids contains id => values.getOrElseUpdate(id, evalRec(d.resolvedExp)(this))
+			case d: Defn if ids contains id => values.getOrElseUpdate(id, evalRec(d.resolvedExp, this))
 			case _ => container.deref(id)
 		}
 	}
@@ -160,7 +163,7 @@ object TreeEvaluator {
 	// This one is a deferred execution. When asked for the result, we execute it.
 	class IndirectThunk(private[this] var code: Expr, private[this] var context: StackFrame) extends Thunk {
 		override lazy val value = {
-			val result = evalRec(code)(context)
+			val result = evalRec(code, context)
 			code = null // Dereference these two, to allow garbage collection.
 			context = null
 			result

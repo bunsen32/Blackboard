@@ -39,7 +39,7 @@ object GrammarParser extends TokenParsers {
 	
 	type ParserExp = Parser[Exp[PARSE]]
 
-	def expblock: ParserExp = OpenBrace~>opt(definitions<~Semicolon)~exp<~CloseBrace ^^ {
+	def expblock: ParserExp = OpenBrace~>opt(definitions<~Semicolon)~exp<~opt(Semicolon)<~CloseBrace ^^ {
 		case Some(defs)~exp => Scope(exp, defs:_*)
 		case None~exp => exp
 	}

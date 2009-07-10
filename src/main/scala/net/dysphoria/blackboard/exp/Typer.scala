@@ -97,7 +97,7 @@ object Typer {
 			case (a: Variable, b) => {
 				assert(a != b) // Should be ensured by first case, above + rules of Variable equality.
 				if (occursintype(a, b))
-					throw new TypeError("Recursive unification: "+a.toString+" cannot equal "+b.toString)
+					throw new RecursiveTypeException(a, b)
 				a.instance = Some(b)
 			}
 
@@ -105,7 +105,7 @@ object Typer {
 
 			case (a: Constr, b: Constr) => {
 				if (a.name != b.name ||
-					a.args.length != b.args.length) throw new TypeError("Type mismatch: "+a.toString+"≠"+b.toString)
+					a.args.length != b.args.length) throw new TypeMismatchException(a, b)
 
 				for(i <- 0 until a.args.length)
 					unify(a.args(i), b.args(i))

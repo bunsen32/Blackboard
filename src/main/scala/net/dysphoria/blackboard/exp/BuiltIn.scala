@@ -25,14 +25,14 @@ object BuiltIn extends Env {
 	val StringString = new Tuple(Array(String, String))
 	val FStringStringToString = new Function(StringString, String)
 	val localDefs = Map.empty ++ List(
-		"+" -> nativeFunction("+", true, FIntIntToInt, p => p[Int](0)+p[Int](1)),
-		"*" -> nativeFunction("*", true, FIntIntToInt, p => p[Int](0)*p[Int](1)),
-		"-" -> nativeFunction("-", true, FIntIntToInt, p => p[Int](0)-p[Int](1)),
-		"/" -> nativeFunction("/", true, FIntIntToInt, p => p[Int](0)/p[Int](1)),
-		"&" -> nativeFunction("&", true, FIntIntToInt, p => p[Int](0)&p[Int](1)),
-		"|" -> nativeFunction("|", true, FIntIntToInt, p => p[Int](0)|p[Int](1)),
-		"=" -> nativeFunction("=", true, FIntIntToBoolean, p => p[Int](0)==p[Int](1)),
-		"append"-> nativeFunction("append", false, FStringStringToString, p=> p[String](0)+p[String](1)),
+		"+" -> nativeFunction("+", true, FIntIntToInt, p => p[Int](0) + p[Int](1)),
+		"*" -> nativeFunction("*", true, FIntIntToInt, p => p[Int](0) * p[Int](1)),
+		"-" -> nativeFunction("-", true, FIntIntToInt, p => p[Int](0) - p[Int](1)),
+		"/" -> nativeFunction("/", true, FIntIntToInt, p => p[Int](0) / p[Int](1)),
+		"&" -> nativeFunction("&", true, FIntIntToInt, p => p[Int](0) & p[Int](1)),
+		"|" -> nativeFunction("|", true, FIntIntToInt, p => p[Int](0) | p[Int](1)),
+		"=" -> nativeFunction("=", true, FIntIntToBoolean, p => p[Int](0) == p[Int](1)),
+		"append"-> nativeFunction("append", false, FStringStringToString, p=> p[String](0) + p[String](1)),
 	)
 
 	def defs(key: String) =
