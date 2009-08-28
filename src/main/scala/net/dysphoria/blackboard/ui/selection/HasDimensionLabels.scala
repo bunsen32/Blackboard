@@ -93,7 +93,7 @@ case class DimensionLabelsSelection(val blockIndexes: Map[DimensionLabelsBlock, 
 			val newPairs = (blockIndexes.keySet ++ other.keySet) map (k => {
 				val a = blockIndexes.getOrElse(k, empty)
 				val b = other.getOrElse(k, empty)
-				(k, (a excl b)++(b excl a))
+				(k, (a -- b)++(b -- a))
 			}) filter (pair => ! pair._2.isEmpty)
 
 			if (newPairs.isEmpty)

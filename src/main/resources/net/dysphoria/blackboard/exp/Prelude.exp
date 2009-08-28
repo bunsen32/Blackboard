@@ -1,0 +1,50 @@
+{
+trait Eq T {
+  function (a: T)=(b: T): Boolean
+  function (a)≠(b) = !(a = b)
+}
+
+trait Ordered T extends Eq {
+  function (a: T)<(b: T): Boolean
+  function (a)≥(b) = !(a < b)
+  function (a)≤(b) = !(b < a)
+  function (a)>(b) = (b < a)
+
+	function (a)min(b) = (a<b)?a:b
+	function (a)max(b) = (b<a)?a:b
+	function clamp(lower, v, upper) = lower max v min upper
+}
+
+trait Numeric N extends Eq {
+	function (a: N)+(b: N): N
+	function (a: N)-(b: N): N
+	function (a: N)*(b: N): N
+	function (a: N)/(b: N): N
+}
+
+
+treat Int as Numeric {
+	function (a)=(b) = inteq(a, b)
+	function (a)+(b) = intadd(a, b)
+	function (a)-(b) = intsub(a, b)
+	function (a)*(b) = intmult(a, b)
+	function (a)/(b) = intdiv(a, b)
+}
+function (a)%(b) = intmod(a, b)
+
+
+treat Real as Numeric {
+	function (a)=(b) = realeq(a, b)
+	function (a)+(b) = realadd(a, b)
+	function (a)-(b) = realsub(a, b)
+	function (a)*(b) = realmult(a, b)
+	function (a)/(b) = realdiv(a, b)
+}
+
+
+function plum(a, b) = a + b;
+//;(4.5+3.2, 3+6, plum(5.44, 2.3))
+//;plum
+(4.3 = 9.2, 4 = 4, true = false)
+
+}

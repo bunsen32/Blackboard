@@ -11,6 +11,9 @@ import scala.util.parsing.input.Reader
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.combinator.syntactical.TokenParsers
 import blackboard.data.types
+import types.{core=>c}
+
+import Ast._
 
 object GrammarParser extends TokenParsers {
 	type Tokens = Tokeniser.type
@@ -31,26 +34,28 @@ object GrammarParser extends TokenParsers {
 	// Conversions
 
 	implicit def acc(t: Elem): Parser[Elem] = acceptIf(_ == t)("‘"+t+"’ expected, but "+ _ +" found")
-	implicit def optionTypeToVar(optT: Option[types.Type]) =
-		optT.getOrElse(new types.Variable)
+	implicit def optionTypeToTypeExp(optT: Option[TypeExp]) =
+		optT.getOrElse(NoTypeExp)
 
 
 	// EXPRESSIONS
 	
-	type ParserExp = Parser[Exp[PARSE]]
+	type ParserExp = Parser[Exp]
 
 	def expblock: ParserExp = OpenBrace~>opt(definitions<~Semicolon)~exp<~opt(Semicolon)<~CloseBrace ^^ {
-		case Some(defs)~exp => Scope(exp, defs:_*)
+		case Some((vars, types, tBehaviours))~exp => Block(exp, vars, types, tBehaviours)
 		case None~exp => exp
 	}
-	def exp: ParserExp = term~rep(term)~opt(ternarytail)~opt(Colon~>typeexp) ^^
-		{case head~tail~ternary~opttyp => Evaluation(head::tail, ternary)}
+	def exp: ParserExp = untyped_exp~opt(Colon~>typeexp) ^^ {
+		case exp~typ => exp
+	}
+	def untyped_exp: ParserExp = term~rep(term)~opt(ternarytail) ^^ {
+		case head~tail~ternary => Evaluation(head::tail, ternary)
+	}
 	def term: ParserExp = (
 		expblock
 	|	bracketed
 	//|	seq_exp
-		// Inside an expression, allow use of '=' as an operator:
-	|	Equals ^^ {case Equals => Dereference("=")}
 	|	deref
 	|	value
 	|	ifthenelse
@@ -60,23 +65,27 @@ object GrammarParser extends TokenParsers {
 
 	def bracketed = OpenParen~>repsep(exp,Comma)<~CloseParen ^^ {
 		case exps => exps.lengthCompare(1) match {
-			case x if x<0 => Const((), types.Unit)
+			case x if x<0 => Const((), c.Unit)
 			case x if x==0=> exps(0)
-			case x if x>0 => TupleExp(exps:_*)
+			case x if x>0 => Tuple(exps)
 		}
 	}
 	def bracketedsingleexp = OpenParen ~> exp <~ CloseParen
-	def deref = accept("name reference", {case Ident(n) => Dereference(n)})
-	def ifthenelse = If~bracketedsingleexp~exp~Else~exp ^^
-		{case If~cond~truePath~Else~falsePath => new If(cond, truePath, falsePath)}
-	def ternarytail = Question~exp~Colon~exp ^^
+	def deref = accept("name reference", {
+			case Ident(n) => ValueRef(n)
+			case Equals => ValueRef("=") // Allow use of '=' as an operator.
+		})
+	def ifthenelse:Parser[Exp] = If~bracketedsingleexp~exp~Else~exp ^^
+		{case If~cond~truePath~Else~falsePath => Ast.If.apply(cond, truePath, falsePath)}
+	def ternarytail = Question~untyped_exp~Colon~untyped_exp ^^
 		{case Question~x~Colon~y => TernaryTail(x, y)}
 
-	def value = val_string | val_number | val_true | val_false
-	def val_number = accept("number", {case DigitString(n) => Const(n.toInt, types.Int)})
-	def val_string = accept("string", {case CharString(n) => Const(n, types.String)})
-	def val_true = (True ^^^ Const(true, types.Boolean))
-	def val_false= (False ^^^Const(false,types.Boolean))
+	def value = val_string | val_number | val_real | val_true | val_false
+	def val_number = accept("number", {case DigitString(n) => Const(n.toInt, c.Int)})
+	def val_real = accept("real", {case RealNumberString(n)=> Const(n.toDouble, c.Real)})
+	def val_string = accept("string", {case CharString(n) => Const(n, c.String)})
+	def val_true = (True ^^^ Const(true, c.Boolean))
+	def val_false= (False ^^^Const(false,c.Boolean))
 
 	// For comprehensions
 
@@ -92,47 +101,80 @@ object GrammarParser extends TokenParsers {
 	// DEFINITIONS
 
 	def definitions = opt(definition~rep(opt(Semicolon)~>definition)) ^^ {
-		case None => List()
-		case Some(def1~rest) => def1::rest
+		case None => (Nil, Nil, Nil)
+		case Some(def1~rest) => segregateDefinitions(def1::rest)
 	}
-	def definition = defn_var | defn_fn | defn_infix_fn
+	def segregateDefinitions(ds: List[Node]) = {
+		import scala.collection.mutable.ListBuffer
+		val vars = new ListBuffer[ValueDef]
+		val types = new ListBuffer[TypeLikeDef]
+		val traitInstances = new ListBuffer[TraitInstance]
+		for (x <- ds) x match {
+			case d: ValueDef => vars += d
+			case t: TypeLikeDef => types += t
+			case i: TraitInstance => traitInstances += i
+		}
+		(vars.toList, types.toList, traitInstances.toList)
+	}
+
+	def definition: Parser[Decl] = defn_var | defn_function | typelike_def | trait_inst
 
 	// Variables
 
 	def defn_var = Var~>defname~opt(typeannot)~Equals~exp ^^ {
-		case name~typ~Equals~value => new Defn(name, typ, value)
+		case name~typ~Equals~value => VariableDef(name, typ, value)
 	}
 
-	// Functions and lambdas
 
-	def defn_infix_fn = Function~>formalparamsingle~!defname~!formalparamsingle~!opt(typeannot)~!functionbody ^^ {
-		case param1~name~param2~res~body => {
-			val argtype = new types.Tuple(Array(param1.typ, param2.typ))
-			val params = Array(param1, param2)
-			new FunctionDefn(name, true,
-							 new types.Function(argtype, res),
-							 Lambda(body, params: _*))
-		}
-	}
-	def defn_fn = Function~>defname~!formalparamlist~!opt(typeannot)~!functionbody ^^ {
+	// NAMED FUNCTIONS AND LAMBDAS
+/*	def defn_function = prefix_function
+	
+	def prefix_function = Function~>defname~!formalparamlist~!opt(typeannot)~function_body ^^ {
 		case name~paramlist~res~body => {
-			val argtype = paramtype(paramlist map (_.typ))
-			new FunctionDefn(name, false,
-							 new types.Function(argtype, res),
-							 Lambda(body, paramlist: _*))
+			val argtype = paramtype(paramlist map (_.parsedType));
+			FunctionDefn(name, false, FunctionTypeExp(argtype, res), Lambda(body, paramlist: _*))
 		}
 	}
-	def anon_fn = Function~>formalparamlist~!opt(typeannot)~!functionbody ^^ {
+*/
+	def defn_function = function_signature ~ function_body ^^ {
+		case (name, infix, isImplicit, typ, params)~body => FunctionDef(name, infix, isImplicit, typ, Lambda(body, params, Nil))
+	}
+	
+	def function_signature =
+		prefix_function_signature | infix_function_signature
+	
+	// Need this type declaration here, otherwise the Scala type inferencer gets very confused.
+	def prefix_function_signature: Parser[Tuple5[String, Boolean, Boolean, FunctionTypeExp, Seq[Param]]] =
+		opt(Implicit)~Function~!defname~!formalparamlist~!opt(typeannot) ^^ {
+			
+		case impl~Function~name~paramlist~res => {
+			val argtype = paramtype(paramlist map (_.declaredType));
+			(name, false, impl.isDefined, FunctionTypeExp(argtype, res), paramlist)
+		}
+	}
+
+	// Need this type declaration here, otherwise the Scala type inferencer gets very confused.
+	def infix_function_signature: Parser[Tuple5[String, Boolean, Boolean, FunctionTypeExp, Seq[Param]]] =
+		Function~>formalparamsingle~!defname~!formalparamsingle~!opt(typeannot) ^^ {
+			
+		case param1~name~param2~res => {
+			val argtype = TupleTypeExp(Array(param1.declaredType, param2.declaredType))
+			val params = List(param1, param2);
+			(name, true, false, FunctionTypeExp(argtype, res), params)
+		}
+	}
+		
+	def anon_fn = Function~>formalparamlist~opt(typeannot)~function_body ^^ {
 		case paramlist~res~body => {
-			Lambda(body, paramlist: _*)
+			Lambda(body, paramlist, Nil)
 		}
 	}
 	
-	def paramtype(params: Seq[types.Type]): types.Type =
+	def paramtype(params: Seq[TypeExp]): TypeExp =
 		params.lengthCompare(1) match {
-			case x if x<0 => types.Unit
+			case x if x<0 => UnitTypeExp
 			case x if x==0=> params(0)
-			case x if x>0 => new types.Tuple(params)
+			case x if x>0 => TupleTypeExp(params)
 		}
 
 	def defname = accept("name definition", {
@@ -142,8 +184,8 @@ object GrammarParser extends TokenParsers {
 	def formalparamsingle = OpenParen~>formalparam<~CloseParen
 	def formalparamlist = OpenParen~>repsep(formalparam, Comma)<~CloseParen
 	def formalparam = defname~opt(typeannot) ^^
-		{case ident~optionalType => new Param(ident, optionalType)}
-	def functionbody = Equals~>exp | expblock
+		{case ident~optionalType => Param(ident, optionalType)}
+	def function_body = Equals~>exp | expblock
 
 	
 	// TYPES
@@ -151,23 +193,78 @@ object GrammarParser extends TokenParsers {
 	/** A type annotation on an expression/variable/parameter/function. */
 	def typeannot = Colon~>typeexp
 
+	def typelike_def: Parser[TypeLikeDef] = (
+		typedef
+	|	trait_decl
+	)
+
+	def typedef = Type~>defname~Equals~typeexp ^^ {
+		case name~Equals~exp => TypeDef(name, exp)
+	}
+
+	def trait_decl = Trait~>defname~type_param~opt(Extends~>rep1sep(traitref, Comma))~trait_decl_block ^^ {
+		case traitname~param~optSuperTraits~decls => {
+			val supertraits = optSuperTraits.getOrElse(Nil)
+			TraitDef(traitname, param, supertraits, decls)
+		}
+	}
+	def trait_inst: Parser[TraitInstance] = Treat~>typeexp~As~rep1sep(traitref, Comma)~trait_inst_block ^^ {
+		case t~As~traits~decls => TraitInstance(t, traits, decls)
+	}
+
+	def trait_decl_block = OpenBrace~>rep(defn_function | abstract_function)<~CloseBrace
+	def trait_inst_block = OpenBrace~>rep(defn_function)<~CloseBrace
+
+	def abstract_function = function_signature ^^ {
+		case (name, infix, isImplicit, typ, params) => AbstractFunctionDef(name, infix, isImplicit, typ)
+	}
+
+	// GENERIC TYPE DECLARATIONS
+
+	def type_param_list = rep1sep(type_param, Comma)
+
+	def type_param = typename~rep(typeconstraint) ^^ {
+		case name~constraints => TypeParam(name, constraints)
+	}
+
+	def typeconstraint: Parser[TypeConstraint] = (
+		implementsconstraint
+	|	subtypeconstraint
+	|	supertypeconstraint
+	)
+
+	def implementsconstraint: Parser[TypeConstraint] = Colon~>traitref ^^ {case t => ConformsToTrait(t)}
+	def subtypeconstraint: Parser[TypeConstraint] = SubtypeOf~>typeexp ^^ {case t => IsSubtypeOf(t)}
+	def supertypeconstraint: Parser[TypeConstraint] = SupertypeOf~>typeexp ^^ {case t => IsSupertypeOf(t)}
+
+	
+	// TYPE EXPRESSIONS
+
 	def typeexp = typeterm~rep(GoesTo~>typeterm) ^^
 		{case (a~list) => composeFunctionType(a, list)}
 
-	def typeterm: Parser[types.Type] = tupletype | typename
+	def typeterm: Parser[TypeExp] = tupletype | typeref
+
+	def simpletyperef = typename ^^ {case name => TypeLikeRef(name, Nil)}
+
+	def traitref = typename ^^ {case name => TraitRef(name)}
+
+	def typeref = typename~opt(OpenBracket~>rep1sep(typeexp, Comma)<~CloseBracket) ^^ {
+		case name~optParams => TypeLikeRef(name, optParams.getOrElse(Nil))
+	}
 	
-	def typename = accept("type name", {case Ident(n) => new types.NamedVariable(n)})
+	def typename = accept("type name", {case Ident(n) => n})
 	
 	def tupletype = OpenParen~>repsep(typeexp, Comma)<~CloseParen ^^
 		(list => list.lengthCompare(1) match {
-			case x if x<0 => throw new ParseError("Empty brackets are not a valid type. (Did you mean ‘Unit’?)")
+			case x if x<0 => UnitTypeExp
 			case 0 => list(0)
-			case x if x>0 => new types.Tuple(list)
+			case x if x>0 => TupleTypeExp(list)
 		})
 
-	def composeFunctionType(head: types.Type, tail: List[types.Type]): types.Type = tail match {
+	def composeFunctionType(head: TypeExp, tail: List[TypeExp]): TypeExp = tail match {
 		case Nil => head
-		case x::xs => composeFunctionType(new types.Function(head, x), xs)
+		case x::xs => composeFunctionType(FunctionTypeExp(head, x), xs)
 	}
 
 }

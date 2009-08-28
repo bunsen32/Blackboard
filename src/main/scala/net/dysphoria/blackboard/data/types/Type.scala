@@ -7,44 +7,63 @@
 
 package net.dysphoria.blackboard.data.types
 
-abstract class Type {
+abstract class TypeLike
+
+abstract class Type extends TypeLike {
 	override def toString = TypeToString(this)
-}
-class Variable extends Type {
-	var instance: Option[Type] = None
-}
-class NamedVariable(name: String) extends Variable {
-	override def toString = name
+
+	/** Returns the currently defining instance of t.
+	 *  As a side effect, collapses the list of type instances. For a concrete type,
+	 *  (or an unbound type variable) returns the type itself.
+	 */
+	def pruned: Type
 }
 
-case class Constr(name: String, args: Seq[Type]) extends Type 
+class Variable(val constraints: Set[TypeConstraint]) extends Type {
+	def this() = this(Set.empty)
+	var instance: Option[Type] = None
+	def pruned = instance match {
+		case None => this
+		case Some(other) => {
+			instance = Some(other.pruned)
+			other
+		}
+	}
+}
+
+case class Constr(name: String, args: Seq[Type]) extends Type {
+	def pruned = this
+}
 
 class InfixConstr(arg1: Type, name: String, arg2: Type) extends Constr(name, Array(arg1, arg2)) 
 
+// Named with a keyword… so cannot conflict with user-defined types:
 class Function(val arg: Type, val res: Type) extends InfixConstr(arg, "→", res)
 
-class Tuple(args: Seq[Type]) extends Constr("×", args) 
+// Named with a keyword… so cannot conflict with user-defined types:
+class Tuple(args: Seq[Type]) extends Constr(",", args)
 
 class Monomorphic(name: String) extends Constr(name, Nil) 
 
-object Unit extends Monomorphic("Unit")
-object Boolean extends Monomorphic("Boolean")
-object Int extends Monomorphic("Int")
-object Rational extends Monomorphic("Rational")
-object Real extends Monomorphic("Real")
-object Complex extends Monomorphic("Complex")
-
-object String extends Monomorphic("String")
+object core {
+	object Unit extends Monomorphic("Unit")
+	object Boolean extends Monomorphic("Boolean")
+	object Int extends Monomorphic("Int")
+	object Rational extends Monomorphic("Rational")
+	object Real extends Monomorphic("Real")
+	object Complex extends Monomorphic("Complex")
+	object String extends Monomorphic("String")
+}
 
 object TypeToString {
 	def apply(t: Type) = {
 		import scala.collection.mutable
 		val names = new mutable.HashMap[Variable, Int]
 		def variableName(v: Variable) = intToGreek(names.getOrElseUpdate(v, names.size))
-		def applyRec(t: Type, bracketIfInfix: Boolean): String = prune(t) match {
+		def applyRec(t: Type, bracketIfInfix: Boolean): String = t.pruned match {
 			case v: Variable => variableName(v)
 			case Constr("→", args)=>possiblyBracket(applyRec(args(0), true)+" → "+applyRec(args(1), false), bracketIfInfix)
-			case Constr("×", args)=>mkString(args, "(", ", ", ")")
+			case Constr(",", args)=>mkString(args, "(", ", ", ")")
 			case Constr(name, args) if args.isEmpty => name
 			case Constr(name, args) => name + mkString(args, "[", ", ", "]")
 		}
@@ -56,7 +75,25 @@ object TypeToString {
 			}
 			s.append(end).toString
 		}
-		applyRec(t, false)
+		def constraintString(v: Variable) = (
+			for(c <- v.constraints)
+				yield c match {
+					case ConformsToTrait(t) => " : "+t.name
+					case SubtypeOf(other)=> " <: " + applyRec(other, false)
+					case SupertypeOf(other)=> " >: "+applyRec(other, false)
+				}
+			).mkString
+
+		val raw = applyRec(t, false)
+		if (names.keys.forall(_.constraints.isEmpty)){
+			raw
+
+		}else {
+			raw + " where " + (
+			for((v, n) <- names if (!v.constraints.isEmpty))
+				yield variableName(v)+constraintString(v)
+			).mkString(",")
+		}
 	}
 
 	private val greek = "αβγδεζηθικλμνξοπρστυφχψω"
@@ -76,12 +113,5 @@ object TypeToString {
 	private def possiblyBracket(s: String, yes: Boolean) =
 		if (yes) "("+s+")" else s
 
-	private def prune(t: Type): Type = t match {
-		case v: Variable => v.instance match {
-			case Some(other) => prune(other)
-			case None => v
-		}
-		case c: Constr =>c
-	}
 }
 

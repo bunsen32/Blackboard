@@ -22,6 +22,7 @@ object Test2 {
 	def main(args: Array[String]) {
 		Console.setOut(new java.io.PrintStream(java.lang.System.out, true, "utf-8"))
 		Console.setIn(new java.io.InputStreamReader(java.lang.System.in, "utf-8"))
+		java.lang.System.setErr(new java.io.PrintStream(java.lang.System.err, true, "utf-8"))
 
 		/*val typeExpressions = Array(
 			"int -> bool",
@@ -41,17 +42,45 @@ object Test2 {
 				println("PARSED:")
 				println(exp)
 
-				val resolved = NameResolver.resolve(exp)(BuiltIn)
+				val (resolved, resErrors) = NameResolver.resolve(exp, BuiltInEnv)
+				if (! resErrors.isEmpty){
+					println("\nERRORS:")
+					for(e <- resErrors)
+						println(e.message + " at " + e.where)
+				}
 				println("\nRESOLVED:")
 				println(resolved)
-				
-				val typ = Typer.analyse(resolved)
-				println("\nTYPED:")
-				println(typ)
 
-				val result = TreeEvaluator.eval(resolved)
+				val (resolved2, resErrors2) = EvaluationResolver.resolve(resolved)
+				if (! resErrors2.isEmpty){
+					println("\nERRORS:")
+					for(e <- resErrors2)
+						println(e.message + " at " + e.where)
+				}
+				println("\nEVAL TERMS RESOLVED:")
+				println(resolved2)
+
+				val res3 = TraitResolver.resolve(resolved2, BuiltInEnv)
+				if (res3.isLeft){
+					println("\nERRORS:")
+					for(e <- res3.left.get)
+						println(e.message + " at " + e.where)
+					return
+				}
+				println("\nTRAITS RESOLVED")
+					
+				val (typed, typErrors) = Typer.resolve(resolved2, res3.right.get, BuiltInEnv)
+				if (! typErrors.isEmpty){
+					println("\nERRORS:")
+					for(e <- typErrors)
+						println(e.message + " at " + e.where)
+				}
+				println("\nTYPED:")
+				println(typed*Annotations.Type)
+
+				/*val result = TreeEvaluator.eval(resolved)
 				println("\nEVALUATED:")
-				println(result)
+				println(result)*/
 			}
 			case failure => println(failure)
 		}

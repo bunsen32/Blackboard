@@ -39,6 +39,7 @@ object Tokeniser extends Lexical with ConcreteSyntax with ImplicitConversions {
 	|	delim
 	|	symbol~rep(symbol) ^^ (a => makeIdentifier(a))
 	|	letter~rep(letter|digit|'_')	^^ (a => makeIdentifier(a))
+	|	realnumber
 	|	digit~rep(digit) ^^ (a => DigitString(a))
 	|	string('\'')
     |	string('"')
@@ -63,6 +64,10 @@ object Tokeniser extends Lexical with ConcreteSyntax with ImplicitConversions {
 		delimiter ~ rep(chrExcept(delimiter, '\n', EofCh) ) ~ delimiter ^^ {
 			case st ~ chars ~ end => CharString(chars mkString "")
 		}
+
+	def realnumber = digit~rep(digit)~'.'~rep(digit) ^^ {
+		case intpart~'.'~fracpart => RealNumberString(intpart+'.'+(fracpart.mkString))
+	}
 
 	// see `whitespace in `Scanners'
 	override def whitespace: Parser[Any] = rep(

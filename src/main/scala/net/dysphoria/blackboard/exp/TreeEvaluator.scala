@@ -4,23 +4,29 @@
  * To change this template, choose Tools | Template Manager
  * and open the template in the editor.
  */
-
+/*
 package net.dysphoria.blackboard.exp
 
 import scala.collection.mutable
+import blackboard.data.types
+import TypedSyntax._
 
 /**
  * Evaluates expressions (Expr instances) directly. Not the most efficient way to do it,
  * but simple in terms of implementation.
  */
 object TreeEvaluator {
-	type Expr = Exp[RESOLV]
+	type Expr = Exp
 
 	def eval(exp: Expr): Any = evalRec(exp, GlobalFrame)
 	def evalRec(exp: Expr, frame: StackFrame): Any = (exp: @unchecked) match {
 		case Const(v, _) => v
 
-		case ResolvedRef(id) => frame.deref(id)
+		case Reference(id) => frame.deref(id)
+
+		case s: Scope => {
+			evalRec(s.body, new ScopeFrame(frame, s))
+		}
 
 		case If(pred, trueExp, falseExp) =>
 			if(evalRec(pred, frame) == true)
@@ -28,8 +34,16 @@ object TreeEvaluator {
 			else
 				evalRec(falseExp, frame)
 
-		case t: TupleExp[RESOLV] => {
+		case t: Tuple => {
 			new Tup((for(term <- t.terms) yield new IndirectThunk(term, frame)).toArray)
+		}
+
+		case l: Lambda => {
+			l.params.lengthCompare(1) match {
+				case x if x<0 => new Execution0(l, frame)
+				case x if x==0=> new Execution1(l, frame)
+				case x if x>0 => new ExecutionN(l, frame)
+			}
 		}
 
 		case Apply(fn, arg) => {
@@ -44,17 +58,20 @@ object TreeEvaluator {
 			}
 		}
 
-		case l: Lambda[RESOLV] => {
-			l.params.lengthCompare(1) match {
-				case x if x<0 => new Execution0(l, frame)
-				case x if x==0=> new Execution1(l, frame)
-				case x if x>0 => new ExecutionN(l, frame)
-			}
+		case PolyExp(exp, params) => new Polymorph(exp, frame, params)
+
+		case InstantiatePoly(exp, typeArgs) => evalRec(exp, frame) match {
+			case p: Polymorph => p(typeArgs map (eval(_, frame)))
+			case other => error("Tried to InstantiatePoly a "+other)
 		}
 
-		case s: Scope[RESOLV] => {
-			evalRec(s.body, new ScopeFrame(frame, s))
-		}
+		case InstantiateTrait(typ, fnDefn) => eval(typ, frame)(fnDefn)
+
+	}
+
+	def eval(typ: TypeClassExp, frame: StackFrame) = typ match {
+		case TypeClassLiteral(t) => t
+		case TypeClassRef(p) => frame.derefType(p)
 	}
 
 	class Tup(val thunks: Seq[Thunk]){
@@ -64,62 +81,82 @@ object TreeEvaluator {
 		}
 	}
 
-	class Execution0(fun: Lambda[RESOLV], static: StackFrame) extends Function0[Any] {
+	class Polymorph(exec: Exp, static: StackFrame, params: Seq[TypeParam]) {
+		def apply(args: Seq[TypeClass]) = {
+			val frame = new TypeFrame(static, params, args)
+			evalRec(exec, frame)
+		}
+	}
+
+	class Execution0(fun: Lambda, static: StackFrame) extends Function0[Any] {
 		def apply() = evalRec(fun.body, static)
 	}
 
-	class Execution1(fun: Lambda[RESOLV], static: StackFrame) extends Function1[Thunk, Any] {
+	class Execution1(fun: Lambda, static: StackFrame) extends Function1[Thunk, Any] {
 		def apply(arg: Thunk) = evalRec(fun.body, new CallFrame1(static, fun, arg))
 	}
 
-	class ExecutionN(fun: Lambda[RESOLV], static: StackFrame) extends Function1[Thunk, Any] {
+	class ExecutionN(fun: Lambda, static: StackFrame) extends Function1[Thunk, Any] {
 		def apply(arg: Thunk) = evalRec(fun.body, new CallFrameN(static, fun, arg))
 	}
 
 	abstract class StackFrame {
 		def thunk(id: Expr): Thunk
-		def deref(id: Identifier): Any
+		def deref(id: VariableIdentifier): Any
+		def derefType(t: TypeParam): TypeClass
 	}
 
 	object GlobalFrame extends StackFrame {
-		val ids = Set.empty ++ BuiltIn.localDefs.values
-		for(id <- ids) {
-			id.resolvedExp = NameResolver.resolve(id.parsedExp)(null)
-		}
+		val ids = Set.empty ++ BuiltIn.functionList
 
 		def thunk(exp: Expr) = new IndirectThunk(exp, this)
-		def deref(id: Identifier) = id match {
-			case d: FunctionDefn if ids contains d => d.resolvedExp.asInstanceOf[Const].value
+		def deref(id: VariableIdentifier) = id match {
+			case d: FunctionDef if ids contains d => d.value.asInstanceOf[Const].value
 			case _ => error("Cannot find identifier "+id)
 		}
+		def derefType(t: TypeParam) = throw new UnsupportedOperationException("TODO");
 	}
 
-	class ScopeFrame(container: StackFrame, lexicalScope: Scope[RESOLV]) extends StackFrame{
-		val ids = Set.empty ++ (lexicalScope.ids)
+	class ScopeFrame(container: StackFrame, lexicalScope: Scope) extends StackFrame{
+		val ids = Set.empty ++ (lexicalScope.defn)
 		val values = new mutable.HashMap[Identifier, Any]
 
 		def thunk(exp: Expr) = exp match {
 			case i: Identifier if values.contains(i) => new ValThunk(values(i))
 			case _ => new IndirectThunk(exp, this)
 		}
-		def deref(id: Identifier) = id match {
-			case d: Defn if ids contains id => values.getOrElseUpdate(id, evalRec(d.resolvedExp, this))
+		def deref(id: VariableIdentifier) = id match {
+			case d: Defn if ids contains d => values.getOrElseUpdate(d, evalRec(d.value, this))
 			case _ => container.deref(id)
 		}
+		def derefType(t: TypeParam) = container.derefType(t)
+	}
+
+	class TypeFrame(container: StackFrame, params: Seq[TypeParam], args: Seq[TypeClass]) extends StackFrame{
+		require(params.length == args.length)
+		val typeMap = Map.empty ++ (params.elements.zip(args.elements))
+
+		def thunk(exp: Expr) = container.thunk(exp)
+		def deref(id: VariableIdentifier) = container.deref(id)
+		def derefType(t: TypeParam) = typeMap.getOrElse(t, container.derefType(t))
 	}
 
 	object NativeParams0 extends NativeParams {
 		def apply[P](index: Int) = error("Attempt to dereference parameter "+index)
 	}
 
-	class CallFrame1(container: StackFrame, function: Lambda[RESOLV], arg: Thunk) extends StackFrame {
+	abstract class CallFrame(container: StackFrame) extends StackFrame {
+		override def derefType(t: TypeParam) = container.derefType(t)
+	}
+
+	class CallFrame1(container: StackFrame, function: Lambda, arg: Thunk) extends CallFrame(container) {
 		val param0 = function.params(0)
 
 		def thunk(exp: Expr) = exp match {
 			case p: Param if p == param0 => arg
 			case _ => new IndirectThunk(exp, this)
 		}
-		def deref(id: Identifier) = id match {
+		def deref(id: VariableIdentifier) = id match {
 			case p: Param if id == param0 => arg.value
 			case _ => container.deref(id)
 		}
@@ -129,14 +166,14 @@ object TreeEvaluator {
 		def apply[P](index: Int) = {assume(index == 0); arg.value.asInstanceOf[P]}
 	}
 
-	class CallFrameN(container: StackFrame, function: Lambda[RESOLV], params: Thunk) extends StackFrame {
+	class CallFrameN(container: StackFrame, function: Lambda, params: Thunk) extends CallFrame(container) {
 		lazy val ids = Map.empty ++ (function.params.elements.zip(params.value.asInstanceOf[Tup].thunks.elements))
 
 		def thunk(exp: Expr) = exp match {
 			case p: Param if ids contains p => ids(p)
 			case _ => new IndirectThunk(exp, this)
 		}
-		def deref(id: Identifier) = id match {
+		def deref(id: VariableIdentifier) = id match {
 			case p: Param if ids contains p => ids(p).value
 			case _ => container.deref(id)
 		}
@@ -164,7 +201,7 @@ object TreeEvaluator {
 	class IndirectThunk(private[this] var code: Expr, private[this] var context: StackFrame) extends Thunk {
 		override lazy val value = {
 			val result = evalRec(code, context)
-			code = null // Dereference these two, to allow garbage collection.
+			code = null // Un-reference these two, to allow garbage collection.
 			context = null
 			result
 		}
@@ -177,14 +214,5 @@ object TreeEvaluator {
 
 }
 
-abstract class NativeParams {
-	def apply[P](index: Int): P
-}
 
-abstract class NativeFunction {
-	val op: NativeParams=>Any
-}
-case class NativeFunction0(override val op: NativeParams=>Any) extends NativeFunction
-case class NativeFunction1(override val op: NativeParams=>Any) extends NativeFunction
-case class NativeFunctionN(override val op: NativeParams=>Any) extends NativeFunction
-
+*/

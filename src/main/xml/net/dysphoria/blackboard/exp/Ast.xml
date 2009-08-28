@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+    Document   : ASTDescription.xml
+    Created on : July 26, 2009, 11:42 AM
+    Author     : andrew
+    Description:
+        Purpose of the document follows.
+-->
+
+<trait name="Ast" package="net.dysphoria.blackboard.exp">
+<!-- purposefully do not indent here, so that generated code indentation looks alright -->
+
+<preamble>
+	import blackboard.data.types
+	trait Ref {
+		def ident: String
+	}
+
+	/**
+	 * Common supertype for declarations (as seen in a block)
+	 */
+	trait Decl extends Node
+	
+	/**
+	 * A common supertype for function definitions and abstract function declarations.
+	 */
+	trait FunctionLikeDecl extends ValueIdentifier {
+		def name: String
+		def operator: Boolean
+		def isImplicit: Boolean
+		def declaredType: TypeExp
+
+		val arity = declaredType match {
+			case FunctionTypeExp(UnitTypeExp, _) => 0
+			case FunctionTypeExp(TupleTypeExp(p), _) => p.length
+			case _ => 1
+		}
+		assert((arity == 1 || arity == 2) || !operator)
+		def fixity = if (operator) if (arity == 2) Infix else Postfix else Nofix
+		def precedence = Precedence.of(name)
+	}
+	val NoTypeExp = NoTypeExpClass()
+	val UnitTypeExp = UnitTypeExpClass()
+
+	import Annotations.OperatorInfo
+</preamble>
+
+
+<!-- DECLARATIONS -->
+<node name="Identifier" abstract="true" extends="Node">
+	def name: String
+</node>
+<node name="ValueIdentifier" abstract="true" extends="Identifier">
+	def declaredType: TypeExp
+</node>
+<node name="Param" extends="ValueIdentifier">
+	<property name="name" type="String"/>
+	<property name="declaredType" nodetype="TypeExp"/>
+</node>
+<node name="ValueDef" abstract="true" extends="ValueIdentifier with Decl">
+	def value: Exp
+</node>
+<node name="FunctionDef" extends="ValueDef with FunctionLikeDecl">
+	<property name="name" type="String" />
+	<property name="operator" type="Boolean" />
+	<property name="isImplicit" type="Boolean" />
+	<property name="declaredType" nodetype="TypeExp" />
+	<property name="value" nodetype="Lambda"/>
+</node>
+<node name="AbstractFunctionDef" extends="ValueIdentifier with FunctionLikeDecl">
+	<property name="name" type="String" />
+	<property name="operator" type="Boolean" />
+	<property name="isImplicit" type="Boolean" />
+	<property name="declaredType" nodetype="TypeExp" />
+</node>
+<node name="VariableDef" extends="ValueDef">
+	<property name="name" type="String" />
+	<property name="declaredType" nodetype="TypeExp" />
+	<property name="value" nodetype="Exp"/>
+</node>
+
+
+<!-- EXPRESSIONS -->
+<node name="Exp" abstract="true" extends="Node"/>
+<node name="Const" extends="Exp">
+	<property name="value" type="Any"/>
+	<property name="typ" type="types.Type"/>
+</node>
+<node name="If" extends="Exp">
+	<property name="predicate" nodetype="Exp" />
+	<property name="ifTrue" nodetype="Exp" />
+	<property name="ifFalse" nodetype="Exp" />
+</node>
+<node name="Tuple" extends="Exp">
+	<property name="terms" nodelisttype="Exp"/>
+</node>
+<node name="Scope" abstract="true" extends="Exp">
+	def ids: Iterable[ValueIdentifier]
+	def typeIds: Iterable[TypeIdentifier]
+	def body: Exp
+	def traitInstances: Iterable[TraitInstance]
+</node>
+<node name="Block" extends="Scope">
+	<property name="body" nodetype="Exp"/>
+	<property name="defs" nodelisttype="ValueDef"/>
+	<property name="typeDefs" nodelisttype="TypeLikeDef"/>
+	<property name="traitInstances" nodelisttype="TraitInstance"/>
+	def ids = defs
+	def typeIds = typeDefs
+</node>
+<node name="Lambda" extends="Scope">
+	<property name="body" nodetype="Exp"/>
+	<property name="params" nodelisttype="Param"/>
+	<property name="typeParams" nodelisttype="TypeParam"/>
+	def ids = params
+	def typeIds = typeParams
+	def traitInstances = Nil
+</node>
+
+<node name="ExplicitType" extends="Exp">
+	<property name="declaredType" nodetype="TypeExp" />
+	<property name="inner" nodetype="Exp"/>
+</node>
+
+<node name="Evaluation" extends="Exp">
+	<property name="terms" nodelisttype="Exp"/>
+	<property name="ternaryTail" nodeoptiontype="TernaryTail" optional="true"/>
+</node>
+<node name="TernaryTail" extends="Exp">
+	<property name="ifTrue" nodetype="Exp"/>
+	<property name="ifFalse" nodetype="Exp"/>
+</node>
+<node name="ValueRef" extends="Exp with Ref">
+	<property name="ident" type="String"/>
+	def isOperator = (this*OperatorInfo).isOperator
+	def isInfix = (this*OperatorInfo).infix
+	def isPostfix = (this*OperatorInfo).postfix
+</node>
+<node name="Apply" extends="Exp">
+	<property name="function" nodetype="Exp"/>
+	<property name="argument" nodetype="Exp"/>
+</node>
+<!-- Possbly needed for trait implementation:
+	case class PolyExp(exp: Exp, args: Seq[TypeParam]) extends Exp
+	case class InstantiatePoly(exp: PolyExp, tArgs: Seq[TypeClassExp]) extends Exp
+
+	case class InstantiateTrait(t: TypeClassExp, f: AbstractFunctionDef) extends Exp
+-->
+
+
+<!-- MODULES -->
+<node name="Module" extends="Scope">
+	<property name="defs" nodelisttype="ValueDef"/>
+	<property name="typeDefs" nodelisttype="TypeLikeDef"/>
+	<property name="traitInstances" nodelisttype="TraitInstance"/>
+	def ids = defs
+	def typeIds = typeDefs
+	def body = Tuple(Nil) // i.e. (), i.e. the Unit value.
+</node>
+
+
+<!-- TYPE DEFINITIONS -->
+<node name="TypeIdentifier" abstract="true" extends="Identifier"/>
+<node name="TypeLikeDef" abstract="true" extends="TypeIdentifier with Decl"/>
+<node name="TypeParam" extends="TypeIdentifier" >
+	<property name="name" type="String" />
+	<property name="constraints" nodelisttype="TypeConstraint" />
+</node>
+<node name="TraitDef" extends="TypeLikeDef" >
+	<property name="name" type="String" />
+	<property name="variable" nodetype="TypeParam"/>
+	<property name="supertraits" nodelisttype="TraitRef"/>
+	<property name="functions" nodelisttype="FunctionLikeDecl"/>
+</node>
+<node name="TypeDef" extends="TypeLikeDef">
+	<property name="name" type="String" />
+	<property name="declaredType" nodetype="TypeExp"/>
+</node>
+
+
+<!-- TYPE BEHAVIOURS -->
+<node name="TraitInstance" extends="Node with Decl">
+	<property name="treat" nodetype="TypeExp"/>
+	<property name="declaredTraits" nodelisttype="TraitRef"/>
+	<property name="functions" nodelisttype="FunctionDef"/>
+</node>
+
+
+<!-- TYPE CONSTRAINTS -->
+<node name="TypeConstraint" abstract="true" extends="Node"/>
+<node name="ConformsToTrait" extends="TypeConstraint">
+	<property name="other" nodetype="TraitRef"/>
+</node>
+<node name="IsSubtypeOf" extends="TypeConstraint">
+	<property name="other" nodetype="TypeExp"/>
+</node>
+<node name="IsSupertypeOf" extends="TypeConstraint">
+	<property name="other" nodetype="TypeExp"/>
+</node>
+
+
+<!-- explicitly not a type-expression/TypeLikeRef -->
+<node name="TraitRef" extends="Node">
+	<property name="name" type="String" />
+</node>
+
+<!-- TYPE EXPRESSIONS -->
+<node name="TypeExp" abstract="true" extends="Node"/>
+<node name="NoTypeExpClass" extends="TypeExp"/>
+<node name="UnitTypeExpClass" extends="TypeExp"/>
+<node name="FunctionTypeExp" extends="TypeExp">
+	<property name="arg" nodetype="TypeExp"/>
+	<property name="res" nodetype="TypeExp" />
+</node>
+<node name="TupleTypeExp" extends="TypeExp">
+	<property name="elements" nodelisttype="TypeExp"/>
+</node>
+<node name="TypeLikeRef" extends="TypeExp with Ref">
+	<property name="ident" type="String" />
+	<property name="args" nodelisttype="TypeExp"/>
+</node>
+<node name="ResolvedType" extends="TypeExp">
+	<property name="typ" type="types.Type" />
+</node>
+<node name="ResolvedTrait" extends="TypeExp">
+	<property name="trt" type="types.Trait" />
+</node>
+
+</trait>

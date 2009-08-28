@@ -20,6 +20,10 @@ trait ConcreteSyntax extends syntax.Tokens {
 		override def toString = "Digits-"+chars
 	}
 
+	case class RealNumberString(override val chars: String) extends Token {
+		override def toString = "Real-"+chars
+	}
+
 	case class CharString(override val chars: String) extends Token {
 		override def toString = "\""+chars+"\""
 	}
@@ -28,18 +32,17 @@ trait ConcreteSyntax extends syntax.Tokens {
 		def this(c: String) = this(c, None)
 		override def toString = "Keywd-"+chars
 	}
-	case object Infix extends Keyword("infix")
+	case object Implicit extends Keyword("implicit")
 	case object Function extends Keyword("function")
 	case object Var extends Keyword("var")
 	case object Equals extends Keyword("=")
 	case object GoesTo extends Keyword("→", Some("->"))
 	case object Implies extends Keyword("⇒", Some("=>"))
-	case object Implements extends Keyword("implements")
 	case object Extends extends Keyword("extends")
-	case object Class extends Keyword("class")
 	case object Type extends Keyword("type")
 	case object Trait extends Keyword("trait")
-	case object With extends Keyword("with")
+	case object Treat extends Keyword("treat")
+	case object As extends Keyword("as")
 	case object For extends Keyword("for")
 	case object Each extends Keyword("each")
 	case object In extends Keyword("in")
@@ -50,6 +53,10 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object Match extends Keyword("match")
 	case object True extends Keyword("true")
 	case object False extends Keyword("false")
+	case object Unit extends Keyword("unit")
+	case object Prefix extends Keyword("prefix")
+	case object SubtypeOf extends Keyword("<:")
+	case object SupertypeOf extends Keyword(">:")
 
 	case class Punctuation(override val chars: String) extends Token{
 		override def toString = "Punct-"+chars
@@ -64,6 +71,6 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object CloseBrace extends Punctuation("}")
 	case object CloseBracket extends Punctuation("]")
 
-	val allKeywords = Set(Infix, Function, Var, Equals, GoesTo, Implies, Implements, Extends, Class, Type, Trait, With, For, In, Question, Colon, If, Else, Match, True, False)
+	val allKeywords = Set(Implicit, Function, Var, Equals, GoesTo, Implies, Extends, Type, Trait, Treat, As, For, In, Question, Colon, If, Else, Match, True, False, Unit, Prefix)
 	val punctuation = Set(Dot, Comma, Semicolon, OpenBracket, OpenBrace, OpenParen, CloseParen, CloseBrace, CloseBracket)
 }
