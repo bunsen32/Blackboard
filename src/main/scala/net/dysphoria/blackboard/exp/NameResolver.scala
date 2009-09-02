@@ -11,7 +11,12 @@ import scala.collection.mutable
 import Ast._
 import Annotations._
 
-object NameResolver {
+object NameResolver extends CompilationPhase[Ast.Node, Ast.Node] {
+
+	def process(in: Ast.Node, env: Environment) = {
+		val (result, errors) = resolve(in, env)
+		if (errors.isEmpty) Right(result) else Left(errors)
+	}
 
 	def resolve(tree: Ast.Node, env: Environment) = {
 		val parseErrors = new mutable.ArrayBuffer[ParseError]

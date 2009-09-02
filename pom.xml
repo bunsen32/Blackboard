@@ -53,6 +53,39 @@
 		<testSourceDirectory>src/test/scala</testSourceDirectory>
 		<plugins>
 			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>xml-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>transform</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<transformationSets>
+						<transformationSet>
+							<dir>src/main/xml</dir>
+							<outputDir>${project.build.directory}/generated-sources/scala</outputDir>
+							<stylesheet>src/main/xsl/ASTMaker.xsl</stylesheet>
+							<fileMappers>
+								<fileMapper implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
+									<targetExtension>.scala</targetExtension>
+								</fileMapper>
+							</fileMappers>
+						</transformationSet>
+					</transformationSets>
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>net.sf.saxon</groupId>
+						<artifactId>saxon</artifactId>
+						<version>8.7</version>
+					</dependency>
+				</dependencies>
+			</plugin>
+
+			<plugin>
 				<groupId>org.scala-tools</groupId>
 				<artifactId>maven-scala-plugin</artifactId>
 				<executions>
@@ -67,6 +100,10 @@
 					<scalaVersion>${scala.version}</scalaVersion>
 					<deprecation>true</deprecation>
 					<unchecked>true</unchecked>
+					<args>
+						<arg>-deprecation</arg>
+						<arg>-unchecked</arg>
+					</args>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -91,6 +128,30 @@
 				<configuration>
 					<testFailureIgnore>true</testFailureIgnore>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>1.1</version>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>
+									${basedir}/src/main/scala
+								</source>
+								<source>
+									${project.build.directory}/generated-sources/scala
+								</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

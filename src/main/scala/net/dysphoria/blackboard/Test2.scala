@@ -37,7 +37,16 @@ object Test2 {
 		}*/
 
 		val in = StreamReader(Console.in)
-		GrammarParser.parseExpression(in) match {
+		Compiler.process(in, BuiltInEnv) match {
+			case Left(errors) =>
+					println("\nERRORS:")
+					for(e <- errors)
+						println(e.message + " at\n" + e.position.longString)
+			case Right(tree) =>
+				println("\nTYPED:")
+				println(tree*Annotations.Type)
+		}
+/*		GrammarParser.parseExpression(in) match {
 			case GrammarParser.Success(exp, _) => {
 				println("PARSED:")
 				println(exp)
@@ -46,7 +55,7 @@ object Test2 {
 				if (! resErrors.isEmpty){
 					println("\nERRORS:")
 					for(e <- resErrors)
-						println(e.message + " at " + e.where)
+						println(e.message + " at\n" + e.position.longString)
 				}
 				println("\nRESOLVED:")
 				println(resolved)
@@ -55,25 +64,25 @@ object Test2 {
 				if (! resErrors2.isEmpty){
 					println("\nERRORS:")
 					for(e <- resErrors2)
-						println(e.message + " at " + e.where)
+						println(e.message + " at\n" + e.position.longString)
 				}
 				println("\nEVAL TERMS RESOLVED:")
 				println(resolved2)
 
-				val res3 = TraitResolver.resolve(resolved2, BuiltInEnv)
+				val res3 = TraitResolver.process(resolved2, BuiltInEnv)
 				if (res3.isLeft){
 					println("\nERRORS:")
 					for(e <- res3.left.get)
-						println(e.message + " at " + e.where)
+						println(e.message + " at\n" + e.position.longString)
 					return
 				}
 				println("\nTRAITS RESOLVED")
 					
-				val (typed, typErrors) = Typer.resolve(resolved2, res3.right.get, BuiltInEnv)
+				val (typed, typErrors) = Typer.resolve((resolved2, res3.right.get), BuiltInEnv)
 				if (! typErrors.isEmpty){
 					println("\nERRORS:")
 					for(e <- typErrors)
-						println(e.message + " at " + e.where)
+						println(e.message + " at\n" + e.position.longString)
 				}
 				println("\nTYPED:")
 				println(typed*Annotations.Type)
@@ -83,7 +92,7 @@ object Test2 {
 				println(result)*/
 			}
 			case failure => println(failure)
-		}
+		}*/
 	}
 	
 }

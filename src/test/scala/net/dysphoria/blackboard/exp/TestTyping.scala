@@ -16,26 +16,23 @@ import Annotations._
 
 class TestTyping extends FunSuite with ShouldMatchers {
 
+	val PhasesBeforeTyper =
+		GrammarParser chain
+		NameResolver chain
+		EvaluationResolver chain
+		TraitResolver
+
+
 	def typeOf(expr: String) = {
 		import scala.util.parsing.input.CharSequenceReader
 		val in = new CharSequenceReader(expr)
-		GrammarParser.parseExpression(in) match {
-			case GrammarParser.Success(exp, _) => {
-				val (r1, errors1) = NameResolver.resolve(exp, BuiltInEnv)
-				if (!errors1.isEmpty) error("Failed to resolve")
-				val (r2, errors2) = EvaluationResolver.resolve(r1)
-				if (!errors2.isEmpty) error("Failed to resolve expressions")
-				var r3 = TraitResolver.resolve(r2, BuiltInEnv) match {
-					case Left(err) => error(err.toString)
-					case Right(res)=> res
+		PhasesBeforeTyper.process(in, BuiltInEnv) match {
+			case Left(errors) => error(errors.toString)
+			case Right(untyped) =>
+				Typer.process(untyped, BuiltInEnv) match {
+					case Left(tErrors) => Left(tErrors(0))
+					case Right(rt) => Right(rt*Type)
 				}
-				val (rt, tErrors) = Typer.resolve(r2, r3, BuiltInEnv)
-				if (tErrors.isEmpty)
-					Right(rt*Type)
-				else
-					Left(tErrors(0))
-			}
-			case failure => error(failure.toString)
 		}
 	}
 

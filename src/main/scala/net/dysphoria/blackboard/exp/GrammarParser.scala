@@ -8,6 +8,7 @@
 package net.dysphoria.blackboard.exp
 
 import scala.util.parsing.input.Reader
+import scala.util.parsing.input.{Position,NoPosition}
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.combinator.syntactical.TokenParsers
 import blackboard.data.types
@@ -15,9 +16,16 @@ import types.{core=>c}
 
 import Ast._
 
-object GrammarParser extends TokenParsers {
+object GrammarParser extends TokenParsers with CompilationPhase[Reader[Char], Ast.Node] {
 	type Tokens = Tokeniser.type
 	val lexical = Tokeniser
+
+	def process(in: Reader[Char], e: Environment) = parseExpression(in) match {
+		case Success(tree, _) => Right(
+				tree)
+		case noSuccess: NoSuccess => Left(List(
+				SyntaxError(noSuccess.next.pos, noSuccess.msg)))
+	}
 
 	def parseDefinitions(in: Reader[Char]) = {
 		val lexer = new lexical.Scanner(in)
@@ -37,6 +45,21 @@ object GrammarParser extends TokenParsers {
 	implicit def optionTypeToTypeExp(optT: Option[TypeExp]) =
 		optT.getOrElse(NoTypeExp)
 
+	// Line/column annotations
+
+	def pos[T<:Ast.Node](parser: Parser[T {type thisType<:T}]) = Parser {
+		in => parser(in) match {
+			case Success(t, in1) => {
+					val positioned = if (t.position == NoPosition)
+							t where (Ast.Node.Position->in.pos)
+						else
+							t
+
+					Success(positioned, in1)
+			}
+			case noSuccess => noSuccess
+		}
+	}
 
 	// EXPRESSIONS
 	
@@ -52,7 +75,7 @@ object GrammarParser extends TokenParsers {
 	def untyped_exp: ParserExp = term~rep(term)~opt(ternarytail) ^^ {
 		case head~tail~ternary => Evaluation(head::tail, ternary)
 	}
-	def term: ParserExp = (
+	def term: ParserExp = pos(
 		expblock
 	|	bracketed
 	//|	seq_exp
@@ -164,11 +187,11 @@ object GrammarParser extends TokenParsers {
 		}
 	}
 		
-	def anon_fn = Function~>formalparamlist~opt(typeannot)~function_body ^^ {
+	def anon_fn = pos(Function~>formalparamlist~opt(typeannot)~function_body ^^ {
 		case paramlist~res~body => {
 			Lambda(body, paramlist, Nil)
 		}
-	}
+	})
 	
 	def paramtype(params: Seq[TypeExp]): TypeExp =
 		params.lengthCompare(1) match {

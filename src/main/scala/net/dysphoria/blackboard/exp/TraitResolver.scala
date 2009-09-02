@@ -14,9 +14,9 @@ import Ast._
 import Annotations._
 import blackboard.data.{types=>t}
 
-object TraitResolver {
+object TraitResolver extends CompilationPhase[Ast.Node, (Ast.Node, Map[Identity, t.Trait])] {
 
-	def resolve(ast: Ast.Node, env: Environment): Either[Seq[LanguageError], Map[Identity, t.Trait]] = {
+	def process(ast: Ast.Node, env: Environment): Either[Seq[LanguageError], (Ast.Node, Map[Identity, t.Trait])] = {
 		// Walks the tree, gathers all trait definitions, then orders them by
 		// supertraits, (throwing error if there are any mutually recursive definitions).
 		// TODO: modify to be able to look up trait defs in the Environment
@@ -71,7 +71,7 @@ object TraitResolver {
 			for(id <- traitDefs.keys){
 				traitFor(id) // Ignore result. Depend on things being added to 'result' as side-effect.
 			}
-			Right(result)
+			Right((ast, result))
 
 		}else
 			Left(errors)

@@ -11,7 +11,12 @@ import scala.collection.mutable
 import Ast._
 import Annotations.OperatorInfo
 
-object EvaluationResolver {
+object EvaluationResolver extends CompilationPhase[Ast.Node, Ast.Node] {
+
+	def process(tree: Ast.Node, e: Environment) = {
+		val (result, errors) = resolve(tree)
+		if (errors.isEmpty) Right(result) else Left(errors)
+	}
 
 	def resolve(tree: Ast.Node) = {
 		val errors = new mutable.ArrayBuffer[LanguageError]

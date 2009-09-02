@@ -16,18 +16,17 @@ import Annotations._
 
 class TestTraitResolver extends FunSuite with ShouldMatchers {
 
+	val PhasesBeforeTraitResolver =
+		GrammarParser chain
+		NameResolver chain
+		EvaluationResolver
+
 	def resolve(expr: String) = {
 		import scala.util.parsing.input.CharSequenceReader
 		val in = new CharSequenceReader(expr)
-		GrammarParser.parseExpression(in) match {
-			case GrammarParser.Success(exp, _) => {
-				val (r1, errors1) = NameResolver.resolve(exp, BuiltInEnv)
-				if (!errors1.isEmpty) error("Failed to resolve")
-				val (r2, errors2) = EvaluationResolver.resolve(r1)
-				if (!errors2.isEmpty) error("Failed to resolve expressions")
-				TraitResolver.resolve(r2, BuiltInEnv)
-			}
-			case failure => error(failure.toString)
+		PhasesBeforeTraitResolver.process(in, BuiltInEnv) match {
+			case Left(failure) => error(failure.toString)
+			case Right(exp) => TraitResolver.process(exp, BuiltInEnv)
 		}
 	}
 

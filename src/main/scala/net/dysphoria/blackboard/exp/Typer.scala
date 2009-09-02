@@ -14,7 +14,7 @@ import t.{core=>c}
 import Ast._
 import Annotations._
 
-object Typer {
+object Typer extends CompilationPhase[(Ast.Node, Map[Identity, t.Trait]), Ast.Node] {
 
 	private abstract class TypeException extends Exception
 	private case class RecursiveUnificationException(a: t.Type, b: t.Type) extends TypeException
@@ -79,7 +79,8 @@ object Typer {
 	 * behaviour context.))
 	 * Returns a pair of (new-tree, type-errors).
 	 */
-	def resolve(tree: Ast.Node, traits: Map[Identity, t.Trait], env: Environment) = {
+	def process(in: (Ast.Node, Map[Identity, t.Trait]), env: Environment) = {
+		val (tree, traits) = in
 		val typeErrors = new mutable.ArrayBuffer[TypeError]
 		val idsToTypes = new mutable.HashMap[Identity, t.Type]
 		implicit val map = IdentifierMap(env, idsToTypes, traits)
@@ -234,7 +235,8 @@ object Typer {
 			}
 		}
 
-		(resolveRec(tree, false)(rootTypingScope), typeErrors)
+		val result = resolveRec(tree, false)(rootTypingScope)
+		if (typeErrors.isEmpty) Right(result) else Left(typeErrors)
 	}
 
 	// TODO: TEST!

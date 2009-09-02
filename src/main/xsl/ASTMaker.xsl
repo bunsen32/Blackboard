@@ -17,6 +17,8 @@
     <xsl:template match="trait">
 package <xsl:value-of select="@package"/>
 
+import scala.util.parsing.input.{Position,NoPosition}
+
 object <xsl:value-of select="@name"/> {
 	type Identity = Int
 
@@ -31,10 +33,12 @@ object <xsl:value-of select="@name"/> {
 
 	abstract class Node extends AstNode {
 		def identity: Identity = apply(Node.Identity)
+		def position: Position = get(Node.Position).getOrElse(NoPosition)
 		override def toString = AstDescriber.describe(this)
 	}
 	object Node {
 		object Identity extends Property[Identity]
+		object Position extends Property[Position]
 	}
 
 <xsl:value-of select="preamble"/>

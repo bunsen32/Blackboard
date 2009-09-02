@@ -80,6 +80,13 @@
 	<property name="value" nodetype="Exp"/>
 </node>
 
+<!-- UNITS -->
+<node name="UnitDef" extends="Identifier">
+	<property name="name" type="String" />
+	<property name="value" nodetype="UnitExp" />
+</node>
+<node name="UnitExp" abstract="true" extends="Node" />
+
 
 <!-- EXPRESSIONS -->
 <node name="Exp" abstract="true" extends="Node"/>
@@ -140,6 +147,10 @@
 <node name="Apply" extends="Exp">
 	<property name="function" nodetype="Exp"/>
 	<property name="argument" nodetype="Exp"/>
+</node>
+<node name="UnitAnnotation" extends="Exp">
+	<property name="constantExp" nodetype="Exp"/>
+	<property name="unit" nodetype="UnitExp" />
 </node>
 <!-- Possbly needed for trait implementation:
 	case class PolyExp(exp: Exp, args: Seq[TypeParam]) extends Exp
