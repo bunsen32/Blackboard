@@ -70,7 +70,8 @@ object GrammarParser extends TokenParsers with CompilationPhase[Reader[Char], As
 		case None~exp => exp
 	}
 	def exp: ParserExp = untyped_exp~opt(Colon~>typeexp) ^^ {
-		case exp~typ => exp
+		case exp~None => exp
+		case exp~Some(typ) => ExplicitType(typ, exp)
 	}
 	def untyped_exp: ParserExp = term~rep(term)~opt(ternarytail) ^^ {
 		case head~tail~ternary => Evaluation(head::tail, ternary)

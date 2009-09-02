@@ -33,7 +33,16 @@ object <xsl:value-of select="@name"/> {
 
 	abstract class Node extends AstNode {
 		def identity: Identity = apply(Node.Identity)
-		def position: Position = get(Node.Position).getOrElse(NoPosition)
+		def position: Position = get(Node.Position) getOrElse {
+			// If this node does not have an explicit position, return the first
+			// position found within its children.
+			for(n &lt;- this)
+				n.get(Node.Position) match {
+					case Some(p) =&gt; return p
+					case None =&gt; ()
+				}
+			return NoPosition
+		}
 		override def toString = AstDescriber.describe(this)
 	}
 	object Node {

@@ -27,7 +27,7 @@ import blackboard.data.{types=>t}
 
 abstract class TypeError extends SemanticError
 case class TypeMismatchError(node: Ast.Node, expected: t.Type, received: t.Type) extends TypeError{
-	def message = "Type mismatch: "+expected.toString+" ≠ "+received.toString
+	def message = "Type mismatch: expected "+expected.toString+" but found "+received.toString
 }
 case class RecursiveTypeError(node: Ast.Node, typ: t.Type, container: t.Type) extends TypeError {
 	def message = "Recursive unification: "+typ.toString+" cannot equal "+container.toString

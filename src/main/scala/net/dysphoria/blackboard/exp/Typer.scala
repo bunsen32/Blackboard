@@ -97,7 +97,7 @@ object Typer extends CompilationPhase[(Ast.Node, Map[Identity, t.Trait]), Ast.No
 		 */
 		def typedNode[T<:Ast.Node](n: T, typ: t.Type)(implicit x: TypingScope): T = {
 			idsToTypes.get(n.identity) match {
-				case Some(existing: t.Type) => unify(typ, existing)
+				case Some(existing: t.Type) => unify(existing, typ)
 				case None => idsToTypes(n.identity) = typ
 			}
 			(n where (Type -> typ.pruned)).asInstanceOf[T]
@@ -142,11 +142,11 @@ object Typer extends CompilationPhase[(Ast.Node, Map[Identity, t.Trait]), Ast.No
 						case Const(_, t) => t
 						case r: ValueRef => fresh(typeOfId(r*ResolvedRef), x.nongen)
 						case Apply(fn, arg) => {
-							unify(new t.Function(typeOf(arg), typeOf(node)), typeOf(fn))
+							unify(typeOf(fn), new t.Function(typeOf(arg), typeOf(node)))
 							typeOf(node)
 						}
 						case If(pred, ifTrue, ifFalse) => {
-							unify(typeOf(pred), c.Boolean)
+							unify(c.Boolean, typeOf(pred))
 							unify(typeOf(ifTrue), typeOf(ifFalse))
 						}
 						case Tuple(args) => {
@@ -295,8 +295,15 @@ object Typer extends CompilationPhase[(Ast.Node, Map[Identity, t.Trait]), Ast.No
 
 
 
-	def unify(t1: t.Type, t2: t.Type)(implicit tScope: TypingScope): t.Type = {
-		(t1.pruned, t2.pruned) match {
+	def unify(expected: t.Type, found: t.Type)(implicit tScope: TypingScope): t.Type = {
+		def unifyVar(a: t.Variable, b: t.Constr) = {
+			assert(a != b)
+			if (occursintype(a, b)) throw new RecursiveUnificationException(a, b)
+			checkConstraints(a.constraints, b)
+			a.instance = Some(b)
+		}
+	
+		(expected.pruned, found.pruned) match {
 			case (a, b) if a eq b => // Do nothing; already unified
 
 			case (a: t.Variable, b: t.Variable) => {
@@ -314,15 +321,8 @@ object Typer extends CompilationPhase[(Ast.Node, Map[Identity, t.Trait]), Ast.No
 				}
 			}
 
-			case (a: t.Variable, b: t.Constr) => {
-				assert(a != b)
-				if (occursintype(a, b)) throw new RecursiveUnificationException(a, b)
-				checkConstraints(a.constraints, b)
-				a.instance = Some(b)
-			}
-
-			// Same as (variable, constr) case. Avoid duplicated code-- just swap:
-			case (a: t.Constr, b: t.Variable) => unify(b, a)
+			case (a: t.Variable, b: t.Constr) => unifyVar(a, b)
+			case (a: t.Constr, b: t.Variable) => unifyVar(b, a)
 
 			case (a: t.Constr, b: t.Constr) => {
 				if (a.name != b.name ||
@@ -332,8 +332,9 @@ object Typer extends CompilationPhase[(Ast.Node, Map[Identity, t.Trait]), Ast.No
 					unify(a.args(i), b.args(i))
 			}
 		}
-		t1.pruned // (Prune again)
+		found.pruned // (Prune again)
 	}
+
 
 	/**
 	 * Given two sets of type contraints, merge them. Currently no attempt is made
