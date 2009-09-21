@@ -13,7 +13,7 @@ import org.eclipse.swt.graphics._
 import blackboard.gfx._
 
 abstract class Block extends Displayable {
-	val genericCellHeight = 16 // Need to get rid of these at some point.
+	val genericCellHeight = 19 // Need to get rid of these at some point.
 	val genericCellWidth = 50 // Will be replaced by the CSS styles.
 
 	var xAxes: Seq[Axis] = Nil
@@ -37,11 +37,17 @@ abstract class Block extends Displayable {
 
 	def labelStyle(axis: Axis, index: Int) = defaultLabelStyle
 
-	def labelDepth(o: Orientation, i: Axis) =
-		if (o.isX) xLabelHeight(i) else yLabelWidth(i)
+	def preferredLabelDepth(o: Orientation, a: Axis, i: Int) =
+		if (a.label(i) == "")
+			0
+		else
+			if (o.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
 
-	def xLabelHeight(a: Axis) = genericCellHeight
-	def yLabelWidth(a: Axis) = genericCellWidth
+	def labelDepth(o: Orientation, a: Axis, i: Int) =
+		if (o.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
+
+	def xLabelHeight(a: Axis, i: Int) = genericCellHeight
+	def yLabelWidth(a: Axis, i: Int) = genericCellWidth
 
 	def axes(o:Orientation) = if (o.isX) xAxes else yAxes
 	def innerBreadth(o:Orientation) = if (o.isX) innerSize.x else innerSize.y
@@ -150,7 +156,7 @@ abstract class Block extends Displayable {
 
 			iterateAxis(b0, axes, coords, (b0, axis, i, remainingAxes)=>{
 					val updatedCoords = coords.update(axis, i)
-					val depth = labelDepth(o, axis)
+					val depth = labelDepth(o, axis, i)
 					val breadth = renderOwnLabels(gfx, o, b0, d0, availableDepth - depth, remainingAxes, updatedCoords)
 					var d1 = d0 - availableDepth
 					val r = o.choose(new Rectangle(b0, d1, breadth, depth),

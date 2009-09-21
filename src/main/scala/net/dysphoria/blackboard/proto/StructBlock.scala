@@ -15,6 +15,7 @@ class StructBlock extends Block {
 	var orientation: Orientation = XOrientation
 	var structAxis: StructAxis = null
 	var elements: Seq[Block] = Nil
+	var labelDepths: scala.Array[Int] = null
 	
 	var maxElementDepth: Int = 0
 
@@ -33,6 +34,13 @@ class StructBlock extends Block {
 		innerSize = new Point(width, height)
 	}
 
+	override def labelDepth(o: Orientation, a: Axis, i: Int) =
+		if (a == structAxis && isPrimaryAxis(o))
+			labelDepths(i)
+		else
+			if (o.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
+
+
 	override def isPrimaryAxis(o: Orientation) = (o == orientation)
 
 	def sizeOf(o: Orientation, axes: Seq[Axis], element: Option[Block]): (Int, Int) = {
@@ -41,20 +49,29 @@ class StructBlock extends Block {
 			axes(0) match {
 				case a: ArrayAxis =>
 					val (header, breadth) = sizeOf(o, remainingAxes, element)
-					(header + labelDepth(orientation, a),
+					(header + preferredLabelDepth(orientation, a, 0),
 					 breadth * a.length)
 
 				case s: StructAxis =>
 					assert(isPrimaryAxis(o), "StructAxes only allowed on primary dimension (by definition).")
 					assert(s == structAxis, "Must be the correct instance of StructAxis")
 					assert(element.isEmpty, "Must not have already found a StructAxis")
-					val structLabelDepth = labelDepth(o, s)
-					((0, 0) /: elements)((aggregate, el) => {
+					val labelChildDepths = new scala.Array[Int](s.length)
+					val result = ((0, 0) /: s.range)((aggregate, i) => {
+						val structLabelDepth = preferredLabelDepth(o, s, i)
+						val el = elements(i)
 						val (agHead, agBreadth) = aggregate
 						val (elHead, elBreadth) = sizeOf(o, remainingAxes, Some(el))
+						labelChildDepths(i) = elHead
 						(Math.max(agHead, elHead + structLabelDepth),
 						 agBreadth + elBreadth)
 					})
+					val (maxDepth, _) = result
+					labelDepths = labelChildDepths // Ugly hack to avoid allocation. Updates array in-place
+					for (i <- s.range)
+						labelDepths(i) = maxDepth - labelChildDepths(i)
+
+					result
 
 				case _=> error("Don't recognise that kind of Axis")
 			}

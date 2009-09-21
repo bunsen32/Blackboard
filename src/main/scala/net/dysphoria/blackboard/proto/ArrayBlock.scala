@@ -19,8 +19,8 @@ class ArrayBlock extends Block {
 		val width = sizeOf(XOrientation, xAxes)
 		val height = sizeOf(YOrientation, yAxes)
 		innerSize = new Point(width, height)
-		topHeader = (0 /: xAxes)(_ + xLabelHeight(_))
-		leftHeader = (0 /: yAxes)(_ + yLabelWidth(_))
+		topHeader = (0 /: xAxes)(_ + xLabelHeight(_, 0))
+		leftHeader = (0 /: yAxes)(_ + yLabelWidth(_, 0))
 	}
 
 	def sizeOf(orientation: Orientation, axes: Seq[Axis]): Int = {
