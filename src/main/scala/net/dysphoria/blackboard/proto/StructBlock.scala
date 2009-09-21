@@ -49,7 +49,8 @@ class StructBlock extends Block {
 			axes(0) match {
 				case a: ArrayAxis =>
 					val (header, breadth) = sizeOf(o, remainingAxes, element)
-					(header + preferredLabelDepth(orientation, a, 0),
+					val maxLabelDepth = (0 /: a.range)((max, i)=>(Math.max(max, preferredLabelDepth(orientation, a, i))))
+					(header + maxLabelDepth,
 					 breadth * a.length)
 
 				case s: StructAxis =>
