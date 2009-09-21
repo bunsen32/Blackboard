@@ -24,9 +24,10 @@ case class MouseDown(x: Int, y: Int) extends DragState
  */
 case object Dragging extends DragState
 
+import org.eclipse.swt.widgets.Control
 
-class UIState(val control: GridView) {
-	def grid = control.everything
+class UIState(val control: Control) {
+	//def grid = control.everything
 
 	private var originalSelection: Selectable = NullSelection
 	private var currentSelection: Selectable = NullSelection
