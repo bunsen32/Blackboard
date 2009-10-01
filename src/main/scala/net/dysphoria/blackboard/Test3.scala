@@ -57,7 +57,7 @@ object Test3 {
 			ab.computeSize
 		*/
 		val axisA = new ArrayAxis{length=10; interItemLine = lightLine}
-		val axisS = new StructAxis{elements = List("", "Total"); interItemLine = heavyLine}
+		val axisS = new StructAxis{elements = List("Data", "Total"); interItemLine = heavyLine}
 		val data = new ArrayBlock {
 			xAxes = Nil
 			yAxes = Seq(axisA)

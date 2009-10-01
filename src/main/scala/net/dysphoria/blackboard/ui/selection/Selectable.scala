@@ -9,6 +9,9 @@ package net.dysphoria.blackboard.ui.selection
 
 abstract class Selectable {
 	def contains(other: Selectable) = false
+	def orElse(other: => Selectable) = this
 }
 
-case object NullSelection extends Selectable
+case object NullSelection extends Selectable {
+	override def orElse(other: => Selectable) = other
+}

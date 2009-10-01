@@ -9,7 +9,7 @@ package net.dysphoria.blackboard.proto
 
 import data.{types=>t}
 
-abstract class Array extends Aggregate {
+abstract class ArrayTable extends Aggregate {
 	def axes = dimensions
 	def dimensions: Seq[ArrayAxis]
 	def elementType: t.Type

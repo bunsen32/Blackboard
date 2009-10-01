@@ -16,6 +16,7 @@ import swt.widgets.{List=>_, _}
 import blackboard.gfx._
 import ui.Listeners._
 import ui.UIState
+import ui.EventState
 
 class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCROLL|SWT.V_SCROLL) {
     private val Origin = new Point(0, 0)
@@ -42,6 +43,29 @@ class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCR
 			// Not much to do
 						})
     addPaintListener(paintControl _)
+
+	private val listener: Listener = handleEvent _
+	Array(
+		SWT.KeyDown, SWT.KeyUp,
+		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
+		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
+		SWT.Help
+
+	) foreach(evt => addListener(evt, listener))
+
+	private def handleEvent(e: Event) {
+		val state = new EventState(e.stateMask)
+		val point = new Point(e.x, e.y)
+
+		e.`type` match {
+			case SWT.MouseDown =>
+				val item = table.get.hitTest(Map.empty, point)
+				ui.select(item)
+				
+			case _ => // ignore
+		}
+	}
+
 
     def paintControl(e: PaintEvent) {
 		val gc = e.gc

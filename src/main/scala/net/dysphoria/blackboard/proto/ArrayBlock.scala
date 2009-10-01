@@ -12,7 +12,7 @@ import ui.{Orientation, XOrientation, YOrientation}
 import gfx._
 
 class ArrayBlock extends Block {
-	var array: Array = null
+	var array: ArrayTable = null
 	val cellStyle = new CellStyle
 
 	def computeInnerSizeAndHeaders {
@@ -48,9 +48,29 @@ class ArrayBlock extends Block {
 
 
 	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int]){
+		val selected = gfx.ui.selection match {
+			case CellSelection(coords) => coords == indices
+			case _=> false
+		}
 		renderBasicCell(gfx, cellStyle, bounds,
-						array(indices).toString)
+						array(indices).toString, selected)
 	}
 
+	def hitTestAxis(o: Orientation, b: Int): Option[(Map[Axis,Int], Int)] = {
+		var remainder = b
+		var available = innerBreadth(o)
+		var coords: Map[Axis, Int] = Map.empty
+		for(ax <- axes(o)) {
+			val perValue = available / ax.length
+			val v = remainder / perValue
+			coords += ((ax, v))
+			remainder %= perValue
+			available = perValue
+		}
+		Some((coords, remainder))
+	}
+
+	def hitTestCell(coords: Map[Axis,Int], relative: Point) =
+		CellSelection(coords)
 
 }

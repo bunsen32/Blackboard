@@ -9,7 +9,7 @@ package net.dysphoria.blackboard.proto
 
 import data.{types=>t}
 
-class TestArray(val dimensions: Seq[ArrayAxis]) extends Array {
+class TestArray(val dimensions: Seq[ArrayAxis]) extends ArrayTable {
 	val elementType = t.core.String
 	def flatApply(p: Int) = {
 		strings(p % strings.length)

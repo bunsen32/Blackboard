@@ -11,6 +11,7 @@ import ui.{Displayable, Orientation, XOrientation, YOrientation}
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics._
 import blackboard.gfx._
+import ui.selection.{Selectable, NullSelection}
 
 abstract class Block extends Displayable {
 	val genericCellHeight = 19 // Need to get rid of these at some point.
@@ -80,44 +81,9 @@ abstract class Block extends Displayable {
 
 	def size = outerSize
 
-	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int
+	/*------------------------------------------------------------------------*/
+	// RENDERING
 
-	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int) {
-		renderBasicCell(gfx, labelStyle(ax, index), bounds,
-						ax.label(index))
-	}
-
-	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int])
-
-	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String) {
-		g.withclip(bounds){
-			import g.gc
-			gc.setBackground(g.colorForRGB(style.backgroundColor))
-			gc.fillRectangle(bounds)
-			gc.setForeground(g.colorForRGB(style.color))
-			gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
-			val fm = gc.getFontMetrics
-			val h = fm.getAscent + fm.getDescent
-			val y = (bounds.height - h)/2
-			val x =
-				if (style.textAlign == TextAlignLeft)
-					style.marginLeft
-				else{
-					val w = gc.stringExtent(value).x
-					if (style.textAlign == TextAlignCenter)
-						(bounds.width - w)/2
-
-					else if (style.textAlign == TextAlignRight)
-						bounds.width - style.marginRight - w
-
-					else
-						error("Unrecognised textAlign value "+style.textAlign)
-				}
-			gc.drawString(value, bounds.x+x, bounds.y+y, true)
-		}
-	}
-
-	
 	def renderCells(gfx: DrawingContext, origin: Point, coords: Map[Axis, Int]) {
 
 		def drawRules(o:Orientation, b0: Int, d0: Int, depth: Int, axes: Seq[Axis], coords: Map[Axis, Int]): Int = {
@@ -149,6 +115,9 @@ abstract class Block extends Displayable {
 	}
 
 
+	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int])
+
+
 	def renderLabels(gfx: DrawingContext, dataOrigin: Point, o:Orientation, coords: Map[Axis, Int]){
 		
 		def renderOwnLabels(gfx: DrawingContext, o: Orientation, b0: Int, d0: Int, availableDepth: Int,
@@ -161,7 +130,7 @@ abstract class Block extends Displayable {
 					var d1 = d0 - availableDepth
 					val r = o.choose(new Rectangle(b0, d1, breadth, depth),
 									 new Rectangle(d1, b0, depth, breadth))
-					renderHeaderLabel(gfx, r, axis, i)
+					renderHeaderLabel(gfx, r, axis, i, updatedCoords)
 					if (i != 0)
 						o.choose(drawSeparator(gfx, axis, b0, d1, 0, availableDepth),
 								 drawSeparator(gfx, axis, d1, b0, availableDepth, 0))
@@ -183,45 +152,97 @@ abstract class Block extends Displayable {
 
 		breadthOfCell(o, coords)
 	}
+
 	
-	def drawSeparator(gfx: DrawingContext, d: Axis, x0: Int, y0: Int, dx: Int, dy: Int){
-		d.interItemLine match {
-			case None => ;// No line
-			case Some(l) => {
-					l.setAttributesOf(gfx)
-					gfx.gc.drawLine(x0, y0, x0+dx, y0+dy)
-			}
+	/*------------------------------------------------------------------------*/
+	// HIT TESTING
+
+	def hitTest(parent: Map[Axis, Int], p: Point): Selectable = {
+		if (p.x >= 0 && p.x < outerSize.x && p.y >= 0 && p.y < outerSize.y) {
+			val (x, y) = (p.x - leftHeader, p.y - topHeader)
+			if (x < 0 && y < 0)
+				NullSelection
+
+			else if (x < 0)
+				hitTestLabels(parent, YOrientation, y, x)
+
+			else if (y < 0)
+				hitTestLabels(parent, XOrientation, x, y)
+
+			else
+				hitTestCells(parent, new Point(x, y))
+
+		}else
+			NullSelection
+	}
+
+	def hitTestCells(parent: Map[Axis, Int], p: Point): Selectable = {
+		val hitX = hitTestAxis(XOrientation, p.x)
+		val hitY = hitTestAxis(YOrientation, p.y)
+		(hitX, hitY) match {
+			case (Some((cx, remainderX)), Some((cy, remainderY))) =>
+				hitTestCell(parent++cx++cy, new Point(remainderX, remainderY))
+			case _=> NullSelection
 		}
 	}
 
+	def hitTestCell(coords: Map[Axis,Int], relative: Point): Selectable
+
+	def hitTestLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int): Selectable = {
+
+		hitTestAxis(o, b) match {
+			case None => NullSelection
+			case Some((coords, delta)) =>
+				def searchLabels(parent: Map[Axis,Int], remain: Seq[Axis], d: Int): Selectable = {
+					if (!remain.isEmpty) {
+						val axis = remain.first
+						val i = coords(axis)
+						val soFar = parent + (axis -> i)
+						val thisD = labelDepth(o, axis, i)
+						if (d < thisD)
+							LabelSelection(soFar)
+						else {
+							searchLabels(soFar,
+										 remain.drop(1),
+										 d - thisD)
+						}
+					}else{
+						hitTestChildLabels(parent, o, b, d)
+					}
+				}
+				searchLabels(parent, axes(o), d + nearHeader(o))
+		}
+	}
+
+	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int): Selectable =
+		LabelSelection(parent)
+
+	def hitTestAxis(o: Orientation, b: Int): Option[(Map[Axis,Int], Int)]
+
+
+	/*------------------------------------------------------------------------*/
+	// SIZING
+
+	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int
+
+
+	/*------------------------------------------------------------------------*/
+	// ITERATION
+
 	def iterateValues(origin: Int, axes: Seq[Axis], coords: Map[Axis, Int],
 					perValue: (Int, Map[Axis,Int])=>Int): Int = {
-		/* Should be equivalent to: */
+
 		iterateAxis(origin, axes, coords, (b0, axis, i, remainingAxes)=>{
 				val updatedCoords = coords.update(axis, i)
 				iterateValues(b0, remainingAxes, updatedCoords, perValue)
 			}, {
 				perValue(origin, coords)
 			})
-		/*
-		if (!axes.isEmpty) {
-			val a = axes(0)
-			val remainingAxes = axes.drop(1)
-			var offset = 0
-			for(i <- a.range){
-				val updatedCoords = coords.update(a, i)
-				val d = iterateValues(origin + offset, remainingAxes, updatedCoords, perValue)
-				offset += d
-			}
-			offset
-
-		} else {
-			perValue(origin, coords)
-		}*/
 	}
 
 	def iterateAxis(origin: Int, axes: Seq[Axis], coords: Map[Axis, Int],
-				  perLabel: (Int, Axis, Int, Seq[Axis])=>Int, bottom: =>Int): Int = {
+				    perLabel: (Int, Axis, Int, Seq[Axis])=>Int,
+					bottom: =>Int): Int = {
 
 		if (!axes.isEmpty){
 			val axis = axes(0)
@@ -237,5 +258,59 @@ abstract class Block extends Displayable {
 			bottom
 		}
 	}
+
+
+	/*------------------------------------------------------------------------*/
+	// GFX UTILITY METHODS
+
+	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, coords: Map[Axis,Int]) {
+		val selected = gfx.ui.selection match {
+			case LabelSelection(c) => c == coords
+			case _=> false
+		}
+		renderBasicCell(gfx, labelStyle(ax, index), bounds,
+						ax.label(index), selected)
+	}
+
+	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selected: Boolean) {
+		g.withclip(bounds){
+			import g.gc
+			val bg = if (selected) g.gc.getDevice().getSystemColor(SWT.COLOR_YELLOW)
+				              else g.colorForRGB(style.backgroundColor)
+			gc.setBackground(bg)
+			gc.fillRectangle(bounds)
+			gc.setForeground(g.colorForRGB(style.color))
+			gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
+			val fm = gc.getFontMetrics
+			val h = fm.getAscent + fm.getDescent
+			val y = (bounds.height - h)/2
+			val x =
+				if (style.textAlign == TextAlignLeft)
+					style.marginLeft
+				else{
+					val w = gc.stringExtent(value).x
+					if (style.textAlign == TextAlignCenter)
+						(bounds.width - w)/2
+
+					else if (style.textAlign == TextAlignRight)
+						bounds.width - style.marginRight - w
+
+					else
+						error("Unrecognised textAlign value "+style.textAlign)
+				}
+			gc.drawString(value, bounds.x+x, bounds.y+y, true)
+		}
+	}
+
+	def drawSeparator(gfx: DrawingContext, d: Axis, x0: Int, y0: Int, dx: Int, dy: Int){
+		d.interItemLine match {
+			case None => ;// No line
+			case Some(l) => {
+					l.setAttributesOf(gfx)
+					gfx.gc.drawLine(x0, y0, x0+dx, y0+dy)
+			}
+		}
+	}
+
 
 }
