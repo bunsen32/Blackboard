@@ -296,7 +296,6 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 			case SWT.ARROW_DOWN => moveSelection(YOrientation, +1, ByOne)
 			case SWT.ARROW_LEFT => moveSelection(XOrientation, -1, ByOne)
 			case SWT.ARROW_RIGHT => moveSelection(XOrientation, +1, ByOne)
-			case _ => println("unrecognised key")
 		}
 	}
 

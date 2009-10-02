@@ -13,21 +13,32 @@ abstract class Navigator {
 
 	def moveByCell(sel: CellSelection, o: Orientation, delta: Int) = {
 		def moveHelper(b: Block): Selectable = {
-			def nextOnAxes(axes: Seq[Axis]): Selectable = {
-				if (axes.isEmpty)
-					NullSelection
-				else {
-					nextOnAxes(axes.drop(1)).orElse{
+
+			def nextOnAxes(axes: Seq[Axis]) = {
+				def next(axes: Seq[Axis], old: Map[Axis, Int]): Selectable = {
+					if (axes.isEmpty)
+						NullSelection
+					else {
 						val axis = axes.first
 						val p = sel.coords(axis)
 						val max = axis.length
 						val newP = p + delta
-						if (newP < 0 || newP >= max)
-							NullSelection
+						if (newP < 0)
+							// Before start of axis. Wrap around and move onto next axis:
+							next(axes.drop(1), old + (axis -> axis.last))
+
+						else if (newP < axis.length)
+							// Within range. Accept new value:
+							CellSelection(old + (axis -> newP))
+
 						else
-							CellSelection(sel.coords + (axis -> newP))
+							// After end of axis. Wrap around and move onto next axis:
+							next(axes.drop(1), old + (axis -> axis.first))
 					}
 				}
+				// We increment least-significant axis first, moving onto more-
+				// significant axes if we hit the end of the range.
+				next(axes.reverse, sel.coords)
 			}
 
 			b match {
