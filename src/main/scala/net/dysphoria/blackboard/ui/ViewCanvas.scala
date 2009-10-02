@@ -304,7 +304,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 		ui.selection match {
 			case cell: CellSelection =>
 				granularity match {
-					case ByOne => ui.select(navigator.moveByCell(cell, o, delta))
+					case ByOne => ui.select(navigator.moveByCell(cell, o, delta).orElse(cell))
 					case _ => //ignore
 				}
 			case _ => //ignore

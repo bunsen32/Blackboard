@@ -45,7 +45,7 @@ class ArrayBlock extends Block {
 
 	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int]){
 		val selected = gfx.ui.selection match {
-			case CellSelection(coords) => coords == indices
+			case CellSelection(coords) => coordinatesMatch(indices, coords)
 			case _=> false
 		}
 		renderBasicCell(gfx, cellStyle, bounds,

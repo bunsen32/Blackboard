@@ -259,6 +259,13 @@ abstract class Block extends Displayable {
 
 
 	/*------------------------------------------------------------------------*/
+	// COORDINATES
+
+	def coordinatesMatch(required: Map[Axis,Int], actual: Map[Axis, Int]) =
+		required.forall(kv => {val (k, v) = kv; actual.get(k)==Some(v)})
+
+
+	/*------------------------------------------------------------------------*/
 	// GFX UTILITY METHODS
 
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, coords: Map[Axis,Int]) {
