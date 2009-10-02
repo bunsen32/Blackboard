@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.dysphoria.blackboard.proto
+package net.dysphoria.blackboard.ui
 
 abstract class Aggregate {
 

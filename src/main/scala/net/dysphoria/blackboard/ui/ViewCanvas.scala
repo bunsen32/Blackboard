@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.dysphoria.blackboard.proto
+package net.dysphoria.blackboard.ui
 
 import scala.collection.mutable
 import org.eclipse.swt
@@ -15,8 +15,6 @@ import swt.graphics._
 import swt.widgets.{List=>_, _}
 import blackboard.gfx._
 import ui.Listeners._
-import ui.UIState
-import ui.EventState
 
 class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCROLL|SWT.V_SCROLL) {
     private val Origin = new Point(0, 0)

@@ -5,11 +5,11 @@
  * and open the template in the editor.
  */
 
-package net.dysphoria.blackboard.proto
+package net.dysphoria.blackboard.ui
 
 import org.eclipse.swt.graphics._
-import ui.{Orientation, XOrientation, YOrientation}
 import gfx._
+import selection._
 
 class ArrayBlock extends Block {
 	var array: ArrayTable = null
@@ -39,10 +39,6 @@ class ArrayBlock extends Block {
 		}
 	}
 
-	def hitTest(orientation: Orientation, axes: Seq[Axis], p: Int): Option[(Coord, Int)] = {
-		None
-	}
-
 	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int =
 		orientation.choose(genericCellWidth, genericCellHeight)
 
@@ -55,6 +51,10 @@ class ArrayBlock extends Block {
 		renderBasicCell(gfx, cellStyle, bounds,
 						array(indices).toString, selected)
 	}
+
+	// Don't have any child labels, so just return selection as-is
+	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int) =
+		LabelSelection(parent)
 
 	def hitTestAxis(o: Orientation, b: Int): Option[(Map[Axis,Int], Int)] = {
 		var remainder = b

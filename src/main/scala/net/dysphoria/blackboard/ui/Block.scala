@@ -5,13 +5,12 @@
  * and open the template in the editor.
  */
 
-package net.dysphoria.blackboard.proto
+package net.dysphoria.blackboard.ui
 
-import ui.{Displayable, Orientation, XOrientation, YOrientation}
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics._
 import blackboard.gfx._
-import ui.selection.{Selectable, NullSelection}
+import ui.selection._
 
 abstract class Block extends Displayable {
 	val genericCellHeight = 19 // Need to get rid of these at some point.
@@ -214,8 +213,7 @@ abstract class Block extends Displayable {
 		}
 	}
 
-	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int): Selectable =
-		LabelSelection(parent)
+	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int): Selectable
 
 	def hitTestAxis(o: Orientation, b: Int): Option[(Map[Axis,Int], Int)]
 

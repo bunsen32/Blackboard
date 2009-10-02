@@ -1,3 +1,0 @@
-#!/bin/sh
-
-java -XstartOnFirstThread -cp target/classes:lib/arch/osx-cocoa/swt.jar:/usr/local/scala/lib/scala-library.jar net.dysphoria.blackboard.Test

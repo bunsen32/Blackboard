@@ -5,12 +5,11 @@
  * and open the template in the editor.
  */
 
-package net.dysphoria.blackboard.proto
+package net.dysphoria.blackboard.ui
 
 import org.eclipse.swt.graphics._
-import ui.{Orientation, XOrientation, YOrientation}
 import gfx._
-import ui.selection.{Selectable, NullSelection}
+import ui.selection._
 
 class StructBlock extends Block {
 	var orientation: Orientation = XOrientation
@@ -21,6 +20,9 @@ class StructBlock extends Block {
 	var endsY: Array[Int] = null
 	
 	var maxElementDepth: Int = 0
+
+	/*------------------------------------------------------------------------*/
+	// SIZING
 
 	def computeInnerSizeAndHeaders {
 		for(el <- elements) el.computeSize
@@ -105,6 +107,10 @@ class StructBlock extends Block {
 			maxElementDepth
 	}
 
+	
+	/*------------------------------------------------------------------------*/
+	// RENDERING
+
 	override def renderChildLabels(gfx: DrawingContext, o: Orientation, b0: Int, d0: Int, availableDepth: Int,
 						  coords: Map[Axis, Int]): Int = {
 
@@ -128,13 +134,17 @@ class StructBlock extends Block {
 		el.renderLabels(gfx, dataOrigin, orientation.opposite, indices)
 	}
 
-	override def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int) = {
+
+	/*------------------------------------------------------------------------*/
+	// HIT-TESTING
+
+	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int) = {
 		if (isPrimaryAxis(o)){
 			val el = elements(parent(structAxis))
 			el.hitTestLabels(parent, o, b + el.firstHeader(o), d)
 
 		}else
-			super.hitTestChildLabels(parent, o, b, d)
+			LabelSelection(parent)
 	}
 
 
@@ -170,12 +180,12 @@ class StructBlock extends Block {
 		} else {
 			val dataRel = orientation.newPoint(b - innerHead, d)
 			el.hitTestCells(parent, dataRel)
-				.orElse(CellSelection(parent))
+				.orElse(BlockSelection(parent))
 		}
 	}
 
 	
-	def binarySearch(ends: Array[Int], v: Int): Int = {
+	private def binarySearch(ends: Array[Int], v: Int): Int = {
 		def search(lo: Int, hi: Int): Int = {
 			if (lo == hi)
 				lo

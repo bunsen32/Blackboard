@@ -1,0 +1,3 @@
+#!/bin/sh
+
+java -XstartOnFirstThread -cp test1/blackboard-SNAPSHOT-1.0.jar:target/classes:lib/arch/osx-64/swt.jar:/usr/local/scala/lib/scala-library.jar net.dysphoria.blackboard.Test

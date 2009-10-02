@@ -4,10 +4,13 @@
  * Part of
  */
 
-package net.dysphoria.blackboard.proto
+package net.dysphoria.blackboard.ui.selection
 
-import ui.selection.Selectable
+import blackboard.ui.Axis
 
+/**
+ * A single selected data cell.
+ */
 case class CellSelection(coords: Map[Axis, Int]) extends Selectable {
 
 }

@@ -92,7 +92,7 @@ class UIState(val control: Control) {
 	def combine(base: Selectable, addDontRemove: Boolean, extension: Selectable): Selectable = {
 		(base, extension) match {
 			
-			case (s: HasTableCells, other: HasTableCells) => {
+/*			case (s: HasTableCells, other: HasTableCells) => {
 				val s1 = s.toCellSet
 				val s2 = other.toCellSet
 				if (addDontRemove) s1 + s2 else s1 - s2
@@ -104,7 +104,7 @@ class UIState(val control: Control) {
 				val result = if (addDontRemove) s1 + s2 else s1 - s2
 				result
 			}
-
+*/
 			case (NullSelection, _) =>
 				if (addDontRemove) extension else NullSelection
 
@@ -116,13 +116,13 @@ class UIState(val control: Control) {
 
 	def makeRange(base: Selectable, extension: Selectable): Selectable = {
 		(base, extension) match {
-			
+/*
 			case (s: HasTableCell, cell: HasTableCell) if cell.block == s.block =>
 				s to cell
 
 			case (s: HasDimensionLabel, l: HasDimensionLabel) if s.block == l.block => 
 				s to l
-
+*/
 			case _ => NullSelection
 		}
 	}
