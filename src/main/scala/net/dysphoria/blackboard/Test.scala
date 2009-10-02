@@ -30,7 +30,6 @@ object Test {
 		shellLayout.marginWidth = 0
 		shellLayout.marginHeight = 0
 		shell.setLayout(shellLayout)
-		val view = new ui.ViewCanvas(shell, swt.SWT.NONE)
 
 		/*
 		val hairLine = Some(new LineDescriptor(new graphics.RGB(210, 210, 233), 1))
@@ -74,7 +73,9 @@ object Test {
 			elements = Seq(data, total)
 		}
 		block.computeSize
-		view.table = Some(block)
+		val view = new ui.ViewCanvas(shell, NONE) {
+			val table = block
+		}
 
 		shell.pack
 		shell.open
