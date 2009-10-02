@@ -31,11 +31,7 @@ object Test {
 		shellLayout.marginHeight = 0
 		shell.setLayout(shellLayout)
 
-		/*
-		val hairLine = Some(new LineDescriptor(new graphics.RGB(210, 210, 233), 1))
-		val lightLine = Some(new LineDescriptor(new graphics.RGB(160, 160, 160), 1))
-		val heavyLine = Some(new LineDescriptor(new graphics.RGB(40, 40, 40), 1))*/
-		val hairLine = Some(new LineDescriptor(new graphics.RGB(210, 210, 233), 1))
+		val hairLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 100), 0.05F))
 		val lightLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 0), 0.333333F))
 		val heavyLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 0), 0.88888888F))
 		

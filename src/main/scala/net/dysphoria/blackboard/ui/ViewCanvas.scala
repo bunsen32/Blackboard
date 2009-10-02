@@ -24,6 +24,9 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 	val red = new RGB(255, 0, 0)
 
 	val table: Block
+	val navigator = new Navigator {
+		val topTable = table
+	}
 	val ui = new UIState(this)
 	var mouseX = -1
 	var mouseY = 0
@@ -121,6 +124,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 			}
 			case SWT.KeyDown => {
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = true
+				processKey(e)
 			}
 			case SWT.KeyUp => {
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = false
@@ -284,6 +288,28 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 			gfx.dispose
 		}
     }
+
+
+	def processKey(e: Event){
+		e.keyCode match {
+			case SWT.ARROW_UP => moveSelection(YOrientation, -1, ByOne)
+			case SWT.ARROW_DOWN => moveSelection(YOrientation, +1, ByOne)
+			case SWT.ARROW_LEFT => moveSelection(XOrientation, -1, ByOne)
+			case SWT.ARROW_RIGHT => moveSelection(XOrientation, +1, ByOne)
+			case _ => println("unrecognised key")
+		}
+	}
+
+	def moveSelection(o: Orientation, delta: Int, granularity: MovementGranularity){
+		ui.selection match {
+			case cell: CellSelection =>
+				granularity match {
+					case ByOne => ui.select(navigator.moveByCell(cell, o, delta))
+					case _ => //ignore
+				}
+			case _ => //ignore
+		}
+	}
 
 
     override def computeSize(wHint: Int, hHint: Int, changed: Boolean) = {
