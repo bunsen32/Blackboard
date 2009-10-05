@@ -39,10 +39,6 @@ class ArrayBlock extends Block {
 		}
 	}
 
-	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int =
-		orientation.choose(genericCellWidth, genericCellHeight)
-
-
 	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int]){
 		val selected = gfx.ui.selection match {
 			case CellSelection(coords) => coordinatesMatch(indices, coords)
@@ -72,5 +68,24 @@ class ArrayBlock extends Block {
 
 	def hitTestCell(coords: Map[Axis,Int], relative: Point) =
 		CellSelection(coords)
+
+
+	def arrayTable(coords: Map[Axis,Int]) = array
+	
+
+	/*------------------------------------------------------------------------*/
+	// SIZING
+
+	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int =
+		orientation.choose(genericCellWidth, genericCellHeight)
+
+
+	def breadthBoundsOfCell(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
+		val i = cellIndexOf(o, coords)
+		val breadth = breadthOfCell(o, coords)
+		val b0 = offset + i * breadth // Assume all cells same width
+		new Range(b0, b0 + breadth, 1)
+	}
+
 
 }

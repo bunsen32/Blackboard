@@ -17,17 +17,29 @@ import blackboard.gfx._
 import ui.Listeners._
 import ui.selection._
 
-abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, SWT.H_SCROLL|SWT.V_SCROLL) {
+abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(parent, SWT.H_SCROLL|SWT.V_SCROLL) {
     private val Origin = new Point(0, 0)
     val white = new RGB(255, 255, 255)
 	val black = new RGB(0, 0, 0)
 	val red = new RGB(255, 0, 0)
 
+	private val listener: Listener = handleEvent _
+	private val cellEditListener: Listener = handleCellEditEvent _
+	private val interestingEvents = Array(
+		SWT.Resize,
+		SWT.KeyDown, SWT.KeyUp,
+		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
+		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
+		SWT.Help
+	)
+
+	
 	val table: Block
 	val navigator = new Navigator {
 		val topTable = table
 	}
 	val ui = new UIState(this)
+	val cellEdit = new CellEditor(this)
 	var mouseX = -1
 	var mouseY = 0
 	var scale = 1.0F
@@ -41,32 +53,62 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 	var maxX = 0F
 	var maxY = 0F
 
+	type GeometryChangedListener = Function[ViewCanvas,Unit]
+	val geometryChangedListeners = new mutable.HashSet[GeometryChangedListener]
+	
+
 	addDisposeListener((e: DisposeEvent) => {
 			// Not much to do
 						})
     addPaintListener(paintControl _)
 
-	private val listener: Listener = handleEvent _
-	Array(
-		SWT.Resize,
-		SWT.KeyDown, SWT.KeyUp,
-		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
-		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
-		SWT.Help
-
-	) foreach(evt => addListener(evt, listener))
+	interestingEvents foreach(evt => addListener(evt, listener))
 	getVerticalBar.addListener(SWT.Selection, scrollVertical _)
 	getHorizontalBar.addListener(SWT.Selection, scrollHorizontal _)
+
+	cellEdit.addListener(SWT.MouseWheel, listener)
+	cellEdit.addListener(SWT.KeyDown, cellEditListener)
+	cellEdit.addListener(SWT.Traverse, cellEditListener)
+
+	private def handleCellEditEvent(e: Event) {
+		e.`type` match {
+			case SWT.Traverse => e.doit = false
+			case SWT.KeyDown => if (processCellEditKey(e)) e.doit = false
+			case _ => false
+		}
+	}
 
 	private def handleEvent(e: Event) {
 		val state = new EventState(e.stateMask)
 		val point = viewToModel(new Point(e.x, e.y))
 
 		e.`type` match {
+			// Events which fire regardless of widget:
+			case SWT.MouseWheel=> if (state.isAltBehaviour) {
+				val newScale = (0.2F max power(scale, 1.05F, e.count) min 5.0F)
+				if (scale != newScale) {
+					// 1:1 scale is special. If the zoom 'crosses' 1:1, make it
+					// exactly 1:1
+					val actualNewScale = if (scale < 1F && newScale >1F || scale > 1F && newScale < 1F) 1F else newScale
+					scale = actualNewScale
+					val newScaledPoint = viewToModel(new Point(e.x, e.y))
+					idealOffsetX = offsetX + point.x - newScaledPoint.x
+					idealOffsetY = offsetY + point.y - newScaledPoint.y
+					computeBounds
+				}
+				e.doit = false // consume the event
+			}
+			case _ if e.widget != this => ; // skip anything else
+
+			// Events specific to the ViewCanvas widget.
 			case SWT.Resize => computeBounds
+
 			case SWT.MouseDown =>
 				val item = selectableThingAt(point)
-				ui.select(item)
+				if (item != ui.selection)
+					ui.select(item)
+				else
+					ui.fineEditMode = true
 				/*if (state.isExtendSelect)
 					ui.extendSelectionTo(hitThing)
 
@@ -82,7 +124,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 						ui.select(hitThing)
 					}
 				}*/
-				
+
 			case SWT.MouseUp => {
 				if (ui.dragState == MouseDown)
 					ui.select(ui.focus)
@@ -111,17 +153,6 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 			}
 			case SWT.MouseExit => {mouseX = -1; redraw}
 			case SWT.MouseEnter=> ;
-			case SWT.MouseWheel=> if (state.isAltBehaviour) {
-				val newScale = (0.2F max power(scale, 1.05F, e.count) min 5.0F)
-				if (scale != newScale) {
-					scale = newScale
-					val newScaledPoint = viewToModel(new Point(e.x, e.y))
-					idealOffsetX = offsetX + point.x - newScaledPoint.x
-					idealOffsetY = offsetY + point.y - newScaledPoint.y
-					computeBounds
-				}
-				e.doit = false // consume the event
-			}
 			case SWT.KeyDown => {
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = true
 				processKey(e)
@@ -133,20 +164,20 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 		}
 	}
 
-	def scrollHorizontal(e: Event){
+	private def scrollHorizontal(e: Event){
 		val unscaled = getHorizontalBar.getSelection
 		val x = (unscaled / 256F) + minX
 		if (x != offsetX)
 			setOrigin(x, offsetY)
 	}
-	def scrollVertical(e: Event){
+	private def scrollVertical(e: Event){
 		val unscaled = getVerticalBar.getSelection
 		val y = (unscaled / 256F) + minY
 		if (y != offsetY)
 			setOrigin(offsetX, y)
 	}
 
-	def power(result: Float, d: Float, e: Int): Float =
+	private def power(result: Float, d: Float, e: Int): Float =
 		if (e == 0)
 			result
 		else if (e < 0)
@@ -165,10 +196,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 
 
 	/**
-	 * If the physical size, or zoom factor, or window size, has changed,
-	 * we need to recompute the view area available and scroll position. Et voila:
+	 * If the model (table) size, or zoom factor, or view (control) size, has changed,
+	 * we need to recompute the view area available and scroll position. Et voila.
+	 * Provides the limits for scrolling, and updates the scrollbars.
+	 * Do not confuse with (SWT-compatible) method 'computeSize'.
 	 */
-	def computeBounds {
+	private def computeBounds {
 		val clientArea = getClientArea
 		val canvasWidth = (clientArea.width / scale)
 		val canvasHeight = (clientArea.height / scale)
@@ -190,7 +223,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 			maxY = minY
 		}
 
-		updateOrigin
+		updateOrigin(true)
 		val xScroll = getHorizontalBar
 		val xPage = (canvasWidth * 256).toInt
 		val xSize = ((canvasWidth max model.x) * 256).toInt
@@ -216,27 +249,38 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 			(yPage - ySmall) max ySmall) // pageIncrement
 	}
 
-	def scrollTo(x: Float, y: Float) {
+	/*def scrollTo(x: Float, y: Float) {
 		setOrigin(x, y)
 		val xScroll = getHorizontalBar
 		val yScroll = getVerticalBar
 		xScroll.setSelection(((offsetX - minX) * 256F).toInt)
 		yScroll.setSelection(((offsetY - minY) * 256F).toInt)
-	}
+	}*/
 
 	private def setOrigin(x: Float, y: Float){
 		idealOffsetX = x
 		idealOffsetY = y
-		updateOrigin
+		updateOrigin(false)
 	}
 
-	private def updateOrigin {
+	/**
+	 * The idealOffset*s (scroll position) have changed, or else the world has
+	 * changed about them. In any case, recompute the ACTUAL offset*s and trigger a
+	 * redraw if they’ve changed.
+	 */
+	private def updateOrigin(scaleChanged: Boolean) {
+		def updateListeners =
+			for(l <- geometryChangedListeners)
+				l.apply(this)
+
 		val x = minX.toFloat max idealOffsetX min maxX
 		val y = minY.toFloat max idealOffsetY min maxY
 		if (x != offsetX || y != offsetY) {
 			offsetX = x; offsetY = y
 			redraw
-		}
+			updateListeners
+		}else
+			if (scaleChanged) updateListeners
 	}
 
 	def viewToModel(p: Point): Point = viewToModel(p.x, p.y)
@@ -296,6 +340,18 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 			case SWT.ARROW_DOWN => moveSelection(YOrientation, +1, ByOne)
 			case SWT.ARROW_LEFT => moveSelection(XOrientation, -1, ByOne)
 			case SWT.ARROW_RIGHT => moveSelection(XOrientation, +1, ByOne)
+			case _ => //ignore
+		}
+	}
+
+	def processCellEditKey(e: Event): Boolean = {
+		val shift = (e.stateMask & SWT.SHIFT) != 0
+		e.keyCode match {
+			case SWT.ARROW_UP => moveSelection(YOrientation, -1, ByOne); true
+			case SWT.ARROW_DOWN => moveSelection(YOrientation, +1, ByOne); true
+			case SWT.TAB if !shift => moveSelection(XOrientation, +1, ByOne); true
+			case SWT.TAB if shift => moveSelection(XOrientation, -1, ByOne); true
+			case _ => false
 		}
 	}
 
@@ -311,6 +367,10 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Canvas(parent, 
 	}
 
 
+	/**
+	 * Deliver the preferred size of the control. Assumes that 'table' already
+	 * has an available computed size.
+	 */
     override def computeSize(wHint: Int, hHint: Int, changed: Boolean) = {
 		try{
 			val clientSize = table.size

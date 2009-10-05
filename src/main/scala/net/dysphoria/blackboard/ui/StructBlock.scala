@@ -100,13 +100,6 @@ class StructBlock extends Block {
 		})
 	}
 
-	def breadthOfCell(o: Orientation, c: Map[Axis, Int]): Int = {
-		if (isPrimaryAxis(o))
-			elements(c(structAxis)).outerBreadth(o)
-		else
-			maxElementDepth
-	}
-
 	
 	/*------------------------------------------------------------------------*/
 	// RENDERING
@@ -199,5 +192,30 @@ class StructBlock extends Block {
 		}
 		search(0, ends.length)
 	}
+
+
+	def arrayTable(coords: Map[Axis,Int]) = 
+		elements(coords(structAxis))
+			.arrayTable(coords)
+
+
+	/*------------------------------------------------------------------------*/
+	// SIZING
+
+	def breadthOfCell(o: Orientation, c: Map[Axis, Int]): Int = {
+		if (isPrimaryAxis(o))
+			elements(c(structAxis)).outerBreadth(o)
+		else
+			maxElementDepth
+	}
+
+	def breadthBoundsOfCell(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
+		val i = cellIndexOf(o, coords)
+		val b = if (i == 0) 0 else ends(o)(i - 1)
+		val el = elements(coords(structAxis))
+		val h = el.firstHeader(o)
+		el.breadthBoundsOfCell(offset + b + h, o, coords)
+	}
+
 
 }

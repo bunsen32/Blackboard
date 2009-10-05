@@ -223,7 +223,15 @@ abstract class Block extends Displayable {
 
 	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int
 
+	def boundsOfCell(coords: Map[Axis, Int]): Rectangle = {
+		val x = breadthBoundsOfCell(leftHeader, XOrientation, coords)
+		val y = breadthBoundsOfCell(topHeader, YOrientation, coords)
+		return new Rectangle(x.start, y.start, x.length, y.length)
+	}
 
+	def breadthBoundsOfCell(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range
+
+	
 	/*------------------------------------------------------------------------*/
 	// ITERATION
 
@@ -257,6 +265,15 @@ abstract class Block extends Displayable {
 		}
 	}
 
+	def cellIndexOf(o: Orientation, coords: Map[Axis, Int]): Int = {
+		var i = 0
+		for (ax <- axes(o))
+			i = i * ax.length + coords(ax)
+		i
+	}
+
+	def arrayTable(coords: Map[Axis,Int]): ArrayTable
+
 
 	/*------------------------------------------------------------------------*/
 	// COORDINATES
@@ -278,33 +295,37 @@ abstract class Block extends Displayable {
 	}
 
 	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selected: Boolean) {
-		g.withclip(bounds){
-			import g.gc
-			val bg = if (selected) g.gc.getDevice().getSystemColor(SWT.COLOR_YELLOW)
-				              else g.colorForRGB(style.backgroundColor)
-			gc.setBackground(bg)
-			gc.fillRectangle(bounds)
-			gc.setForeground(g.colorForRGB(style.color))
-			gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
-			val fm = gc.getFontMetrics
-			val h = fm.getAscent + fm.getDescent
-			val y = (bounds.height - h)/2
-			val x =
-				if (style.textAlign == TextAlignLeft)
-					style.marginLeft
-				else{
-					val w = gc.stringExtent(value).x
-					if (style.textAlign == TextAlignCenter)
-						(bounds.width - w)/2
+		import g.gc
+		val bg = if (selected) g.gc.getDevice().getSystemColor(SWT.COLOR_YELLOW)
+						  else g.colorForRGB(style.backgroundColor)
+		gc.setBackground(bg)
+		gc.fillRectangle(bounds)
+		gc.setForeground(g.colorForRGB(style.color))
+		gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
+		val fm = gc.getFontMetrics
+		val h = fm.getAscent + fm.getDescent
+		val y = (bounds.height - h)/2
+		val w = gc.stringExtent(value).x
+		val x =
+			if (style.textAlign == TextAlignLeft)
+				style.marginLeft
+			else{
+				if (style.textAlign == TextAlignCenter)
+					(bounds.width - w)/2
 
-					else if (style.textAlign == TextAlignRight)
-						bounds.width - style.marginRight - w
+				else if (style.textAlign == TextAlignRight)
+					bounds.width - style.marginRight - w
 
-					else
-						error("Unrecognised textAlign value "+style.textAlign)
-				}
+				else
+					error("Unrecognised textAlign value "+style.textAlign)
+			}
+		// Only set clipping if we need to:
+		if (x < 0 || y < 0 || x+w >= bounds.width || y + h >= bounds.height)
+			g.withclip(bounds){
+				gc.drawString(value, bounds.x+x, bounds.y+y, true)
+			}
+		else
 			gc.drawString(value, bounds.x+x, bounds.y+y, true)
-		}
 	}
 
 	def drawSeparator(gfx: DrawingContext, d: Axis, x0: Int, y0: Int, dx: Int, dy: Int){

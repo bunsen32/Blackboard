@@ -26,7 +26,7 @@ case object Dragging extends DragState
 
 import org.eclipse.swt.widgets.Control
 
-class UIState(val control: Control) {
+class UIState(val control: ViewCanvas) {
 	//def grid = control.everything
 
 	private var originalSelection: Selectable = NullSelection
@@ -66,10 +66,31 @@ class UIState(val control: Control) {
 		}
 	}
 
+	def fineEditMode = control.cellEdit.visible
+	def fineEditMode_=(on: Boolean) {
+		if (on != fineEditMode) {
+			if (on) 
+				updateFineEditMode
+			else
+				control.cellEdit.endEdit
+		}
+	}
+
+	private def updateFineEditMode {
+		selection match {
+			case CellSelection(coords) =>
+				val array = control.table.arrayTable(coords)
+				control.cellEdit.beginEdit(array, coords)
+				
+			case _ => control.cellEdit.endEdit
+		}
+	}
+
 	def selection = currentSelection
 	def selection_=(s: Selectable) {
 		currentSelection = s
 		control.redraw
+		if (fineEditMode) updateFineEditMode
 	}
 
 	def selectLargeBits = _selectLargeBits
