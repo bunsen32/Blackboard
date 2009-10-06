@@ -42,6 +42,13 @@ class CellEditor(canvas: ViewCanvas) {
 	}
 
 
+	def leftPosition =
+		if (input.getOrientation == SWT.LEFT_TO_RIGHT) 0 else input.getCharCount
+
+	def rightPosition =
+		if (input.getOrientation == SWT.LEFT_TO_RIGHT) input.getCharCount else 0
+
+
 	private def visible_=(vis: Boolean){
 		if (vis != _visible) {
 			_visible = vis
@@ -59,7 +66,7 @@ class CellEditor(canvas: ViewCanvas) {
 
 	def updateGeometry {
 		if (visible){
-			val bounds = canvas.table.boundsOfCell(coords)
+			val bounds = canvas.table.cellBounds(coords)
 			val topLeft = canvas.modelToView(bounds.x, bounds.y)
 			input.setBounds(topLeft.x,
 							topLeft.y,

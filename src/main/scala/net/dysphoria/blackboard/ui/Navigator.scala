@@ -14,7 +14,7 @@ abstract class Navigator {
 	def moveByCell(sel: CellSelection, o: Orientation, delta: Int) = {
 		def moveHelper(b: Block): Selectable = {
 
-			def nextOnAxes(axes: Seq[Axis]) = {
+			def nextOnAxes(blockAxes: Seq[Axis]) = {
 				def next(axes: Seq[Axis], old: Map[Axis, Int]): Selectable = {
 					if (axes.isEmpty)
 						NullSelection
@@ -38,7 +38,7 @@ abstract class Navigator {
 				}
 				// We increment least-significant axis first, moving onto more-
 				// significant axes if we hit the end of the range.
-				next(axes.reverse, sel.coords)
+				next(blockAxes.reverse, sel.coords)
 			}
 
 			b match {
@@ -57,8 +57,8 @@ abstract class Navigator {
 					)
 
 				case arr: ArrayBlock =>
-					val axes = arr.axes(o)
-					nextOnAxes(axes)
+					val arrayAxes = arr.axes(o)
+					nextOnAxes(arrayAxes)
 			}
 		}
 		moveHelper(topTable)

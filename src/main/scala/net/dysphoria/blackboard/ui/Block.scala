@@ -158,7 +158,8 @@ abstract class Block extends Displayable {
 
 	def hitTest(parent: Map[Axis, Int], p: Point): Selectable = {
 		if (p.x >= 0 && p.x < outerSize.x && p.y >= 0 && p.y < outerSize.y) {
-			val (x, y) = (p.x - leftHeader, p.y - topHeader)
+			val x = (p.x - leftHeader)
+			val y = (p.y - topHeader)
 			if (x < 0 && y < 0)
 				NullSelection
 
@@ -187,31 +188,30 @@ abstract class Block extends Displayable {
 
 	def hitTestCell(coords: Map[Axis,Int], relative: Point): Selectable
 
-	def hitTestLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int): Selectable = {
-
+	def hitTestLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d0: Int): Selectable =
 		hitTestAxis(o, b) match {
 			case None => NullSelection
-			case Some((coords, delta)) =>
-				def searchLabels(parent: Map[Axis,Int], remain: Seq[Axis], d: Int): Selectable = {
+				
+			case Some((coords, deltaB)) =>
+				def searchLabels(parent: Map[Axis,Int], remain: Seq[Axis], d: Int): Selectable =
 					if (!remain.isEmpty) {
 						val axis = remain.first
 						val i = coords(axis)
 						val soFar = parent + (axis -> i)
 						val thisD = labelDepth(o, axis, i)
 						if (d < thisD)
-							LabelSelection(soFar)
-						else {
+							LabelSelection(soFar, b)
+						else
 							searchLabels(soFar,
 										 remain.drop(1),
 										 d - thisD)
-						}
-					}else{
-						hitTestChildLabels(parent, o, b, d)
-					}
-				}
-				searchLabels(parent, axes(o), d + nearHeader(o))
+						
+					}else
+						hitTestChildLabels(parent, o, deltaB, d0)
+
+				searchLabels(parent, axes(o), d0 + nearHeader(o))
 		}
-	}
+
 
 	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int): Selectable
 
@@ -223,14 +223,17 @@ abstract class Block extends Displayable {
 
 	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int
 
-	def boundsOfCell(coords: Map[Axis, Int]): Rectangle = {
-		val x = breadthBoundsOfCell(leftHeader, XOrientation, coords)
-		val y = breadthBoundsOfCell(topHeader, YOrientation, coords)
+	def cellBounds(coords: Map[Axis, Int]): Rectangle = {
+		val x = breadthCellBounds(leftHeader, XOrientation, coords)
+		val y = breadthCellBounds(topHeader, YOrientation, coords)
 		return new Rectangle(x.start, y.start, x.length, y.length)
 	}
 
-	def breadthBoundsOfCell(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range
+	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range
 
+	def labelBounds(coords: Map[Axis,Int]): Rectangle = {
+		new Rectangle(0, 0, 0, 0)
+	}
 	
 	/*------------------------------------------------------------------------*/
 	// ITERATION
@@ -287,7 +290,7 @@ abstract class Block extends Displayable {
 
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, coords: Map[Axis,Int]) {
 		val selected = gfx.ui.selection match {
-			case LabelSelection(c) => c == coords
+			case LabelSelection(c, _) => c == coords
 			case _=> false
 		}
 		renderBasicCell(gfx, labelStyle(ax, index), bounds,

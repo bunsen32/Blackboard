@@ -335,22 +335,35 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 
 	def processKey(e: Event){
+		val shift = (e.stateMask & SWT.SHIFT) != 0
 		e.keyCode match {
 			case SWT.ARROW_UP => moveSelection(YOrientation, -1, ByOne)
 			case SWT.ARROW_DOWN => moveSelection(YOrientation, +1, ByOne)
 			case SWT.ARROW_LEFT => moveSelection(XOrientation, -1, ByOne)
 			case SWT.ARROW_RIGHT => moveSelection(XOrientation, +1, ByOne)
+			case SWT.TAB if shift => moveSelection(XOrientation, -1, ByOne)
+			case SWT.TAB if !shift => moveSelection(XOrientation, +1, ByOne)
 			case _ => //ignore
 		}
 	}
 
 	def processCellEditKey(e: Event): Boolean = {
 		val shift = (e.stateMask & SWT.SHIFT) != 0
+		val input = cellEdit.input
+		val selection = input.getSelection
+		val selStart = selection.x
+		val emptySelection = (selection.y == selStart)
+		val atLeft = emptySelection && (selStart == cellEdit.leftPosition)
+		val atRight = emptySelection && (selStart == cellEdit.rightPosition)
 		e.keyCode match {
 			case SWT.ARROW_UP => moveSelection(YOrientation, -1, ByOne); true
 			case SWT.ARROW_DOWN => moveSelection(YOrientation, +1, ByOne); true
-			case SWT.TAB if !shift => moveSelection(XOrientation, +1, ByOne); true
+			case SWT.ARROW_LEFT if atLeft => moveSelection(XOrientation, -1, ByOne); true
+			case SWT.ARROW_RIGHT if atRight => moveSelection(XOrientation, +1, ByOne); true
 			case SWT.TAB if shift => moveSelection(XOrientation, -1, ByOne); true
+			case SWT.TAB if !shift => moveSelection(XOrientation, +1, ByOne); true
+
+			case SWT.ESC => ui.fineEditMode = false; true
 			case _ => false
 		}
 	}

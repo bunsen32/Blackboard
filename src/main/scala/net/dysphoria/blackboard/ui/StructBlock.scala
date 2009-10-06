@@ -137,7 +137,7 @@ class StructBlock extends Block {
 			el.hitTestLabels(parent, o, b + el.firstHeader(o), d)
 
 		}else
-			LabelSelection(parent)
+			LabelSelection(parent, b)
 	}
 
 
@@ -209,12 +209,12 @@ class StructBlock extends Block {
 			maxElementDepth
 	}
 
-	def breadthBoundsOfCell(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
+	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
 		val i = cellIndexOf(o, coords)
 		val b = if (i == 0) 0 else ends(o)(i - 1)
 		val el = elements(coords(structAxis))
 		val h = el.firstHeader(o)
-		el.breadthBoundsOfCell(offset + b + h, o, coords)
+		el.breadthCellBounds(offset + b + h, o, coords)
 	}
 
 

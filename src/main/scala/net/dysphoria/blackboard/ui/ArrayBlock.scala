@@ -50,7 +50,7 @@ class ArrayBlock extends Block {
 
 	// Don't have any child labels, so just return selection as-is
 	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int) =
-		LabelSelection(parent)
+		LabelSelection(parent, b)
 
 	def hitTestAxis(o: Orientation, b: Int): Option[(Map[Axis,Int], Int)] = {
 		var remainder = b
@@ -80,7 +80,7 @@ class ArrayBlock extends Block {
 		orientation.choose(genericCellWidth, genericCellHeight)
 
 
-	def breadthBoundsOfCell(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
+	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
 		val i = cellIndexOf(o, coords)
 		val breadth = breadthOfCell(o, coords)
 		val b0 = offset + i * breadth // Assume all cells same width
