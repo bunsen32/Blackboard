@@ -10,6 +10,6 @@ package net.dysphoria.blackboard.ui
 abstract class Struct extends Aggregate {
 	def axes: Seq[Axis] // Axes common to all elements + elementAxis
 	def elementAxis: StructAxis
-	def elements: Seq[Block]
+	def elements: Seq[TableBlock]
 
 }

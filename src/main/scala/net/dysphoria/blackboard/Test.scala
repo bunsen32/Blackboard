@@ -7,7 +7,6 @@ import swt.widgets
 import swt.SWT._
 import swt.events._
 
-import blackboard.data._
 import blackboard.gfx._
 import blackboard.ui._
 import Listeners._
@@ -45,6 +44,7 @@ object Test {
 			yAxes = Seq(axis2, axis4)
 			array = new TestArray(Array(axis1, axis2, axis3, axis4))
 		}
+		val table0 = new Table(block)
 /*		val axisA = new ArrayAxis{length=10; interItemLine = lightLine}
 		val axisS = new StructAxis{elements = List("Data", "Total"); interItemLine = heavyLine}
 		val data = new ArrayBlock {
@@ -64,9 +64,9 @@ object Test {
 			yAxes = Seq(axisS)
 			elements = Seq(data, total)
 		}
-*/		block.computeSize
+*/		table0.computeSize
 		val view = new ui.ViewCanvas(shell, NONE) {
-			val table = block
+			val table = table0
 		}
 
 		shell.pack

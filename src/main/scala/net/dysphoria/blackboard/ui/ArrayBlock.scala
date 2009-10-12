@@ -11,7 +11,7 @@ import org.eclipse.swt.graphics._
 import gfx._
 import selection._
 
-class ArrayBlock extends Block {
+class ArrayBlock extends TableBlock {
 	var array: ArrayTable = null
 	val cellStyle = new CellStyle
 
@@ -50,7 +50,7 @@ class ArrayBlock extends Block {
 
 	// Don't have any child labels, so just return selection as-is
 	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int) =
-		LabelSelection(parent, b)
+		NullSelection
 
 	def hitTestAxis(o: Orientation, b: Int): Option[(Map[Axis,Int], Int)] = {
 		var remainder = b

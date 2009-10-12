@@ -11,10 +11,10 @@ import org.eclipse.swt.graphics._
 import gfx._
 import ui.selection._
 
-class StructBlock extends Block {
+class StructBlock extends TableBlock {
 	var orientation: Orientation = XOrientation
 	var structAxis: StructAxis = null
-	var elements: Seq[Block] = Nil
+	var elements: Seq[TableBlock] = Nil
 	var labelDepths: Array[Int] = null
 	var endsX: Array[Int] = null
 	var endsY: Array[Int] = null
@@ -51,7 +51,7 @@ class StructBlock extends Block {
 
 	def ends(o: Orientation) = if (o.isX) endsX else endsY
 
-	def headerDepth(o: Orientation, axes: Seq[Axis], element: Option[Block]): Int = {
+	def headerDepth(o: Orientation, axes: Seq[Axis], element: Option[TableBlock]): Int = {
 		if (!axes.isEmpty){
 			val remainingAxes = axes.drop(1)
 			axes(0) match {
@@ -137,7 +137,7 @@ class StructBlock extends Block {
 			el.hitTestLabels(parent, o, b + el.firstHeader(o), d)
 
 		}else
-			LabelSelection(parent, b)
+			NullSelection
 	}
 
 

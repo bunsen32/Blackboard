@@ -12,7 +12,7 @@ import org.eclipse.swt.graphics._
 import blackboard.gfx._
 import ui.selection._
 
-abstract class Block extends Displayable {
+abstract class TableBlock {
 	val genericCellHeight = 19 // Need to get rid of these at some point.
 	val genericCellWidth = 50 // Will be replaced by the CSS styles.
 
@@ -64,22 +64,13 @@ abstract class Block extends Displayable {
 		outerSize = new Point(innerSize.x + leftHeader + rightHeader,
 							  innerSize.y + topHeader + bottomHeader)
 	}
+
 	// Should populate header sizes, and inner and outer sizes and labelDepth arrays
 	def computeInnerSizeAndHeaders
 
 	def isPrimaryAxis(o: Orientation) = false
 
-	def render(g: DrawingContext, origin: Point) = {
-		val dataOrigin = new Point(origin.x + leftHeader, origin.y + topHeader)
-
-		renderCells(g, dataOrigin, Map.empty)
-		//Headers
-		renderLabels(g, dataOrigin, XOrientation, Map.empty)
-		renderLabels(g, dataOrigin, YOrientation, Map.empty)
-	}
-
-	def size = outerSize
-
+	
 	/*------------------------------------------------------------------------*/
 	// RENDERING
 
@@ -156,26 +147,6 @@ abstract class Block extends Displayable {
 	/*------------------------------------------------------------------------*/
 	// HIT TESTING
 
-	def hitTest(parent: Map[Axis, Int], p: Point): Selectable = {
-		if (p.x >= 0 && p.x < outerSize.x && p.y >= 0 && p.y < outerSize.y) {
-			val x = (p.x - leftHeader)
-			val y = (p.y - topHeader)
-			if (x < 0 && y < 0)
-				NullSelection
-
-			else if (x < 0)
-				hitTestLabels(parent, YOrientation, y, x)
-
-			else if (y < 0)
-				hitTestLabels(parent, XOrientation, x, y)
-
-			else
-				hitTestCells(parent, new Point(x, y))
-
-		}else
-			NullSelection
-	}
-
 	def hitTestCells(parent: Map[Axis, Int], p: Point): Selectable = {
 		val hitX = hitTestAxis(XOrientation, p.x)
 		val hitY = hitTestAxis(YOrientation, p.y)
@@ -186,34 +157,37 @@ abstract class Block extends Displayable {
 		}
 	}
 
+
 	def hitTestCell(coords: Map[Axis,Int], relative: Point): Selectable
+
 
 	def hitTestLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d0: Int): Selectable =
 		hitTestAxis(o, b) match {
 			case None => NullSelection
 				
-			case Some((coords, deltaB)) =>
-				def searchLabels(parent: Map[Axis,Int], remain: Seq[Axis], d: Int): Selectable =
+			case Some((axisCoords, deltaB)) =>
+				def searchLabels(coords: Map[Axis,Int], remain: Seq[Axis], d: Int): Selectable =
 					if (!remain.isEmpty) {
 						val axis = remain.first
-						val i = coords(axis)
-						val soFar = parent + (axis -> i)
+						val i = axisCoords(axis)
+						val soFar = coords + (axis -> i)
 						val thisD = labelDepth(o, axis, i)
 						if (d < thisD)
-							LabelSelection(soFar, b)
+							LabelSelection(this, o, soFar, b)
 						else
 							searchLabels(soFar,
 										 remain.drop(1),
 										 d - thisD)
 						
 					}else
-						hitTestChildLabels(parent, o, deltaB, d0)
+						hitTestChildLabels(coords, o, deltaB, d0)
 
 				searchLabels(parent, axes(o), d0 + nearHeader(o))
 		}
 
 
 	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int): Selectable
+
 
 	def hitTestAxis(o: Orientation, b: Int): Option[(Map[Axis,Int], Int)]
 
@@ -223,18 +197,15 @@ abstract class Block extends Displayable {
 
 	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int
 
-	def cellBounds(coords: Map[Axis, Int]): Rectangle = {
-		val x = breadthCellBounds(leftHeader, XOrientation, coords)
-		val y = breadthCellBounds(topHeader, YOrientation, coords)
-		return new Rectangle(x.start, y.start, x.length, y.length)
-	}
 
 	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range
+
 
 	def labelBounds(coords: Map[Axis,Int]): Rectangle = {
 		new Rectangle(0, 0, 0, 0)
 	}
-	
+
+
 	/*------------------------------------------------------------------------*/
 	// ITERATION
 
@@ -248,6 +219,7 @@ abstract class Block extends Displayable {
 				perValue(origin, coords)
 			})
 	}
+
 
 	def iterateAxis(origin: Int, axes: Seq[Axis], coords: Map[Axis, Int],
 				    perLabel: (Int, Axis, Int, Seq[Axis])=>Int,
@@ -268,12 +240,14 @@ abstract class Block extends Displayable {
 		}
 	}
 
+
 	def cellIndexOf(o: Orientation, coords: Map[Axis, Int]): Int = {
 		var i = 0
 		for (ax <- axes(o))
 			i = i * ax.length + coords(ax)
 		i
 	}
+
 
 	def arrayTable(coords: Map[Axis,Int]): ArrayTable
 
@@ -288,14 +262,16 @@ abstract class Block extends Displayable {
 	/*------------------------------------------------------------------------*/
 	// GFX UTILITY METHODS
 
+
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, coords: Map[Axis,Int]) {
 		val selected = gfx.ui.selection match {
-			case LabelSelection(c, _) => c == coords
+			case lab: LabelSelection => lab.coords == coords
 			case _=> false
 		}
 		renderBasicCell(gfx, labelStyle(ax, index), bounds,
 						ax.label(index), selected)
 	}
+
 
 	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selected: Boolean) {
 		import g.gc
@@ -331,6 +307,7 @@ abstract class Block extends Displayable {
 			gc.drawString(value, bounds.x+x, bounds.y+y, true)
 	}
 
+	
 	def drawSeparator(gfx: DrawingContext, d: Axis, x0: Int, y0: Int, dx: Int, dy: Int){
 		d.interItemLine match {
 			case None => ;// No line
@@ -340,6 +317,5 @@ abstract class Block extends Displayable {
 			}
 		}
 	}
-
 
 }

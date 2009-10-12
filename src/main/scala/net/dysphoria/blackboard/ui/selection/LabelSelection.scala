@@ -11,5 +11,4 @@ import blackboard.ui.Axis
 /**
  * A single selected axis label. Includes
  */
-case class LabelSelection(coords: Map[Axis, Int], actualB: Int) extends Selectable {
-}
+case class LabelSelection(block: TableBlock, orientation: Orientation, coords: Map[Axis,Int], actualB: Int) extends SingleGridSelection
