@@ -125,6 +125,7 @@ abstract class Navigator {
 				case _ => Nil
 			}))
 
+	
 	def last(b: TableBlock, o: Orientation): Map[Axis, Int] = (
 		Map.empty
 		++ (b.axes(o).map(a => (a -> a.last)))

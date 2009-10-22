@@ -51,6 +51,25 @@ class Table(val topBlock: TableBlock) extends Displayable {
 	}
 
 
+	def moveByCell(sel: SingleGridSelection, o: Orientation, d: Direction) = {
+		sel match {
+			case label: LabelSelection if topBlock.containsInEdgeArea(label) =>
+				topBlock.moveLabelByOne(label, o, d) orElse {
+					if (d.isForward && o == label.orientation.opposite)
+						topBlock.selectEdgeChild(Map.empty, o, First, sel)
+					else
+						NullSelection
+				}
+			case _ => topBlock.moveChildByOne(sel, o, d) orElse {
+				if (d.isBack)
+					topBlock.selectEdgeLabel(Map.empty, o.opposite, o, Last, sel)
+				else
+					NullSelection
+			}
+		}
+	}
+
+
 	def cellBounds(coords: Map[Axis, Int]): Rectangle = {
 		val x = breadthCellBounds(leftHeader, XOrientation, coords)
 		val y = breadthCellBounds(topHeader, YOrientation, coords)

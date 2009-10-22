@@ -33,7 +33,7 @@ object Test {
 		val hairLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 100), 0.05F))
 		val lightLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 0), 0.333333F))
 		val heavyLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 0), 0.88888888F))
-		
+/*
 		val axis1 = new ArrayAxis{length=10; interItemLine = heavyLine}
 		val axis2 = new ArrayAxis{length=10; interItemLine = lightLine}
 		val axis3 = new ArrayAxis{length=2; interItemLine = lightLine}
@@ -44,8 +44,8 @@ object Test {
 			yAxes = Seq(axis2, axis4)
 			array = new TestArray(Array(axis1, axis2, axis3, axis4))
 		}
-		val table0 = new Table(block)
-/*		val axisA = new ArrayAxis{length=10; interItemLine = lightLine}
+*/
+		val axisA = new ArrayAxis{length=10; interItemLine = lightLine}
 		val axisS = new StructAxis{elements = List("Data", "Total"); interItemLine = heavyLine}
 		val data = new ArrayBlock {
 			xAxes = Nil
@@ -64,7 +64,9 @@ object Test {
 			yAxes = Seq(axisS)
 			elements = Seq(data, total)
 		}
-*/		table0.computeSize
+
+		val table0 = new Table(block)
+		table0.computeSize
 		val view = new ui.ViewCanvas(shell, NONE) {
 			val table = table0
 		}

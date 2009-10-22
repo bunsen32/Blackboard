@@ -193,6 +193,68 @@ abstract class TableBlock {
 
 
 	/*------------------------------------------------------------------------*/
+	// NAVIGATION
+
+	/**
+	 * I don't know where my own labels are, but move 1 cell in one of the compass
+	 * directions, and return NullSelection if we fall off the end of data grid or
+	 * label area.
+	 */
+	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable
+	def moveChildByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable
+
+	/**
+	 * Returns true iff this label is in my own label area. (This includes struct’s
+	 * child-blocks’ labels which have been promoted upwards.)
+	 */
+	def containsInEdgeArea(sel: LabelSelection): Boolean
+
+	def selectEdgeLabel(context: Map[Axis,Int], labels: Orientation, plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = {
+		val theAxes = axes(labels)
+		if (theAxes.isEmpty)
+			NullSelection // No axes == no selection.
+		else
+			if (labels == plane){ // 'Short' (transverse) edge of label block.
+				NullSelection // TODO
+				
+			}else{ // 'Long' (longitudinal) edge of label block
+				val axes = if (end.isFirst) Seq(theAxes.first) else theAxes
+				val coords = context ++ hintCoords(axes, hintSel.coords)
+				LabelSelection(this, labels, coords, 0/*TODO*/)
+			}
+	}
+
+	def moveLabelByOne(sel: LabelSelection, o: Orientation, d: Direction): Selectable = {
+		require(sel.block == this)
+		val theAxes = axes(sel.orientation)
+		if (o == sel.orientation) { // Moving parallel to axes.
+			val usedAxes = theAxes.takeWhile(sel.coords.contains(_))
+			nextOnAxes(usedAxes, sel.coords, d) match {
+				case Some(c) => LabelSelection(this, o, c, sel.actualB)
+				case None => NullSelection
+			}
+			
+		}else{ // Moving perpendicular to axes (between axes).
+			val i = lastAxisIn(theAxes, sel.coords)
+			val p = i + d.delta
+			if (p >= 0 && p < theAxes.length) {
+				val newCoords =
+					if (d.isForward)
+						sel.coords + (theAxes(p) -> 0)
+					else
+						sel.coords - (theAxes(i))
+					
+				LabelSelection(this, sel.orientation, newCoords, sel.actualB)
+			}else
+				NullSelection
+		}
+	}
+
+	def hintCoords(axes: Seq[Axis], hints: Map[Axis,Int]) =
+		axes.map(ax => (ax, hints.getOrElse(ax, 0)))
+
+
+	/*------------------------------------------------------------------------*/
 	// SIZING
 
 	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int
@@ -241,6 +303,49 @@ abstract class TableBlock {
 	}
 
 
+	def nextOnAxes(blockAxes: Seq[Axis], start: Map[Axis,Int], d: Direction): Option[Map[Axis,Int]] = {
+		val delta = d.delta
+		def next(axes: Seq[Axis], old: Map[Axis, Int]): Option[Map[Axis,Int]] = {
+			if (axes.isEmpty)
+				None
+			else {
+				val axis = axes.first
+				val p = start(axis)
+				val max = axis.length
+				val newP = p + delta
+				if (newP < 0)
+					// Before start of axis. Wrap around and move onto next axis:
+					next(axes.drop(1), old + (axis -> axis.last))
+
+				else if (newP < axis.length)
+					// Within range. Accept new value:
+					Some(old + (axis -> newP))
+
+				else
+					// After end of axis. Wrap around and move onto next axis:
+					next(axes.drop(1), old + (axis -> axis.first))
+			}
+		}
+		// We increment least-significant axis first, moving onto more-
+		// significant axes if we hit the end of the range.
+		next(blockAxes.reverse, start)
+	}
+
+	
+	def first(o: Orientation): Map[Axis, Int] = axesEnd(o, First)
+
+	def last(o: Orientation): Map[Axis, Int] = axesEnd(o, Last)
+
+	def axesEnd(o:Orientation, anEnd: End): Map[Axis, Int] = (
+		Map.empty
+		++ (this.axes(o).map(a => (a -> anEnd.of(a))))
+		++ (this match {
+				case s: StructBlock if s.orientation == o =>
+					s.elements(anEnd.of(s.structAxis)).axesEnd(o, anEnd)
+				case _ => Nil
+			}))
+
+
 	def cellIndexOf(o: Orientation, coords: Map[Axis, Int]): Int = {
 		var i = 0
 		for (ax <- axes(o))
@@ -259,13 +364,19 @@ abstract class TableBlock {
 		required.forall(kv => {val (k, v) = kv; actual.get(k)==Some(v)})
 
 
+	def lastAxisIn(axes: Seq[Axis], coords: Map[Axis, Int]) =
+		axes.findIndexOf(!coords.contains(_)) match {
+			case -1 => axes.length - 1
+			case n => n - 1
+		}
+
 	/*------------------------------------------------------------------------*/
 	// GFX UTILITY METHODS
 
 
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, coords: Map[Axis,Int]) {
 		val selected = gfx.ui.selection match {
-			case lab: LabelSelection => lab.coords == coords
+			case lab: LabelSelection => lab.block == this && coordinatesMatch(coords, lab.coords)
 			case _=> false
 		}
 		renderBasicCell(gfx, labelStyle(ax, index), bounds,

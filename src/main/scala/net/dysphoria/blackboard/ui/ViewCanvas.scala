@@ -85,12 +85,15 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		e.`type` match {
 			// Events which fire regardless of widget:
 			case SWT.MouseWheel=> if (state.isAltBehaviour) {
-				val newScale = (0.2F max power(scale, 1.05F, e.count) min 5.0F)
-				if (scale != newScale) {
-					// 1:1 scale is special. If the zoom 'crosses' 1:1, make it
-					// exactly 1:1
-					val actualNewScale = if (scale < 1F && newScale >1F || scale > 1F && newScale < 1F) 1F else newScale
-					scale = actualNewScale
+				val oldScale = scale
+				val newScale = (0.2F max power(oldScale, 1.05F, e.count) min 5.0F)
+				if (oldScale != newScale) {
+					// 1:1 scale is special. If the zoom 'crosses' 1:1, snap
+					// to exactly 1:1
+					scale = if ((oldScale < 1F && newScale >1F) || (oldScale > 1F && newScale < 1F))
+							1F
+						else
+							newScale
 					val newScaledPoint = viewToModel(new Point(e.x, e.y))
 					idealOffsetX = offsetX + point.x - newScaledPoint.x
 					idealOffsetY = offsetY + point.y - newScaledPoint.y
@@ -333,18 +336,16 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		}
     }
 
-	private def d_+ = true
-	private def d_- = false
 
 	def processKey(e: Event){
 		val shift = (e.stateMask & SWT.SHIFT) != 0
 		e.keyCode match {
-			case SWT.ARROW_UP => moveSelection(YOrientation, d_-, ByOne)
-			case SWT.ARROW_DOWN => moveSelection(YOrientation, d_+, ByOne)
-			case SWT.ARROW_LEFT => moveSelection(XOrientation, d_-, ByOne)
-			case SWT.ARROW_RIGHT => moveSelection(XOrientation, d_+, ByOne)
-			case SWT.TAB if shift => moveSelection(XOrientation, d_-, ByOne)
-			case SWT.TAB if !shift => moveSelection(XOrientation, d_+, ByOne)
+			case SWT.ARROW_UP => moveSelection(YOrientation, Back, ByOne)
+			case SWT.ARROW_DOWN => moveSelection(YOrientation, Forward, ByOne)
+			case SWT.ARROW_LEFT => moveSelection(XOrientation, Back, ByOne)
+			case SWT.ARROW_RIGHT => moveSelection(XOrientation, Forward, ByOne)
+			case SWT.TAB if shift => moveSelection(XOrientation, Back, ByOne)
+			case SWT.TAB if !shift => moveSelection(XOrientation, Forward, ByOne)
 			case _ => //ignore
 		}
 	}
@@ -358,19 +359,25 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val atLeft = emptySelection && (selStart == cellEdit.leftPosition)
 		val atRight = emptySelection && (selStart == cellEdit.rightPosition)
 		e.keyCode match {
-			case SWT.ARROW_UP => moveSelection(YOrientation, d_-, ByOne); true
-			case SWT.ARROW_DOWN => moveSelection(YOrientation, d_+, ByOne); true
-			case SWT.ARROW_LEFT if atLeft => moveSelection(XOrientation, d_-, ByOne); true
-			case SWT.ARROW_RIGHT if atRight => moveSelection(XOrientation, d_+, ByOne); true
-			case SWT.TAB if shift => moveSelection(XOrientation, d_-, ByOne); true
-			case SWT.TAB if !shift => moveSelection(XOrientation, d_+, ByOne); true
+			case SWT.ARROW_UP => moveSelection(YOrientation, Back, ByOne); true
+			case SWT.ARROW_DOWN => moveSelection(YOrientation, Forward, ByOne); true
+			case SWT.ARROW_LEFT if atLeft => moveSelection(XOrientation, Back, ByOne); true
+			case SWT.ARROW_RIGHT if atRight => moveSelection(XOrientation, Forward, ByOne); true
+			case SWT.TAB if shift => moveSelection(XOrientation, Back, ByOne); true
+			case SWT.TAB if !shift => moveSelection(XOrientation, Forward, ByOne); true
 
 			case SWT.ESC => ui.fineEditMode = false; true
 			case _ => false
 		}
 	}
 
-	def moveSelection(o: Orientation, incNotDec: Boolean, granularity: MovementGranularity){
+	def moveSelection(o: Orientation, d: Direction, granularity: MovementGranularity){
+		ui.selection match {
+			case sel: SingleGridSelection =>
+				ui.select(table.moveByCell(sel, o, d) orElse sel)
+			case _ =>
+		}
+		/*
 		ui.selection match {
 			case cell: CellSelection =>
 				granularity match {
@@ -383,7 +390,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 					case _=>
 				}
 			case _ => //ignore
-		}
+		}*/
 	}
 
 

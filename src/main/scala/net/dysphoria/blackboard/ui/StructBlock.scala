@@ -193,18 +193,158 @@ class StructBlock extends TableBlock {
 		search(0, ends.length)
 	}
 
+	
+	/*------------------------------------------------------------------------*/
+	// NAVIGATION
 
-	def arrayTable(coords: Map[Axis,Int]) = 
-		elements(coords(structAxis))
-			.arrayTable(coords)
+	def containsInEdgeArea(sel: LabelSelection) =
+		(sel.block == this) ||
+		(sel.orientation == this.orientation
+		 && sel.coords.contains(structAxis)
+		 && elementFor(sel.coords).containsInEdgeArea(sel))
 
 
+	override def selectEdgeLabel(parent: Map[Axis,Int], labelOrientation: Orientation, plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = {
+		if (labelOrientation == plane)
+			selectSideEdgeLabel(parent, labelOrientation, end, hintSel)
+		else if (end == First)
+			selectNearEdgeLabel(parent, labelOrientation, hintSel)
+		else
+			selectFarEdgeLabel(parent, labelOrientation, hintSel)
+	}
+
+
+	/**
+	 * Selects an item on the ‘long’ (longitudinal), near edge.
+	 */
+	def selectNearEdgeLabel(parent: Map[Axis,Int], labelOrientation: Orientation, hintSel: SingleGridSelection) =
+		super.selectEdgeLabel(parent, labelOrientation, labelOrientation, First, hintSel) orElse {
+			// If we get here, it means that we don’t actually have any axes on this orientation
+			assert(axes(labelOrientation).isEmpty)
+			// And it means that it’s not ourStructAxis side:
+			assert(labelOrientation != this.orientation)
+			// => There are no child labels:
+			NullSelection
+		}
+
+
+	/**
+	 * Selects an item on the ‘long’ (longitudinal), far edge.
+	 */
+	def selectFarEdgeLabel(parent: Map[Axis,Int], labelOrientation: Orientation, hintSel: SingleGridSelection) = {
+		val childSelection =
+			if (labelOrientation == this.orientation){
+				val coords = parent ++ hintCoords(axes(labelOrientation), hintSel.coords)
+				elementFor(coords)
+					.selectEdgeLabel(coords, labelOrientation, labelOrientation.opposite, Last, hintSel)
+			}else
+				NullSelection
+
+		childSelection orElse
+			super.selectEdgeLabel(parent, labelOrientation, labelOrientation.opposite, Last, hintSel)
+	}
+
+
+	/**
+	 * Selects one of the items on one of the transverse edges.
+	 */
+	def selectSideEdgeLabel(parent: Map[Axis,Int], labelOrientation: Orientation, end: End, hintSel: SingleGridSelection) = {
+		NullSelection // TODO
+	}
+
+
+	override def moveLabelByOne(sel: LabelSelection, o: Orientation, d: Direction): Selectable = {
+		require(this containsInEdgeArea sel)
+		val el = elementFor(sel.coords)
+		if (!(el containsInEdgeArea sel))
+			// It’s one of our own axes’ labels:
+			super.moveLabelByOne(sel, o, d) orElse {
+				// If moving from our axes to child axes:
+				if ((sel.orientation == this.orientation) && (sel.orientation == o.opposite) && d.isForward)
+					el.selectEdgeLabel(sel.coords, sel.orientation, o, First, sel)
+				else
+					NullSelection
+			}
+		else
+			// It's one of our 'combined' child labels:
+			el.moveLabelByOne(sel, o, d) orElse {
+				// If moving from child axes to our axes:
+				if ((sel.orientation == this.orientation) && (sel.orientation == o.opposite) && d.isBack)
+					super.selectEdgeLabel(sel.coords, sel.orientation, o, Last, sel)
+				else
+					nextOnAxes(axes(o), sel.coords, d) match {
+						case Some(c) => LabelSelection(this, o, c, sel.actualB)
+						case None => NullSelection
+					}
+			}
+
+	}
+
+	
+	def moveChildByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable = {
+		val el = elements(sel.coords(structAxis))
+		sel match {
+			case label: LabelSelection if label.block == el =>
+				el.moveLabelByOne(label, o, d) orElse {
+					if (o == label.orientation) // Moving parallel to child label
+						nextOnAxes(axes(o), label.coords, d) match {
+							case Some(c) =>
+								val el = elementFor(c)
+								val subCoords = if (d.isForward) el first o else el last o
+								LabelSelection(el, label.orientation, c ++ subCoords, label.actualB)
+							case None => NullSelection
+						}
+
+					else // Moving perpendicular to child label
+						if (label.orientation == this.orientation){ // Child label
+							if (d.isForward)
+								selectEdgeChild(sel.coords, o, First, sel)
+							else
+								selectEdgeLabel(sel.coords, o, o.opposite, Last, sel)
+
+						}else{ // Element internal label
+							null
+						}
+				}
+			case _ =>
+				el.moveChildByOne(sel, o, d) orElse {
+					nextOnAxes(axes(o), sel.coords, d) match {
+						case Some(c) =>
+							val el = elementFor(c)
+							val subCoords = if (d.isForward) el first o else el last o
+							CellSelection(c ++ subCoords)
+
+						case None => NullSelection
+					}
+				}
+		}
+	}
+
+
+	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = {
+		val myFirst = context ++ (axes(plane) map (ax => (ax, end.of(ax))))
+		val myOrth = Map.empty ++ hintCoords(axes(plane.opposite), hintSel.coords)
+		val myContext = myFirst ++ myOrth
+		val planeParallelToStruct = (plane == this.orientation)
+		
+		val el = if (planeParallelToStruct) end.of(elements) else elementFor(myOrth)
+
+		val maybeLabel = if (planeParallelToStruct && end.isFirst)
+				el.selectEdgeLabel(myContext, plane.opposite, plane, First, hintSel) 
+			else
+				NullSelection
+
+		maybeLabel orElse
+			el.selectEdgeChild(myContext, plane, end, hintSel)
+	}
+
+	
 	/*------------------------------------------------------------------------*/
 	// SIZING
 
 	def breadthOfCell(o: Orientation, c: Map[Axis, Int]): Int = {
 		if (isPrimaryAxis(o))
-			elements(c(structAxis)).outerBreadth(o)
+			elementFor(c).outerBreadth(o)
 		else
 			maxElementDepth
 	}
@@ -212,10 +352,20 @@ class StructBlock extends TableBlock {
 	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
 		val i = cellIndexOf(o, coords)
 		val b = if (i == 0) 0 else ends(o)(i - 1)
-		val el = elements(coords(structAxis))
+		val el = elementFor(coords)
 		val h = el.firstHeader(o)
 		el.breadthCellBounds(offset + b + h, o, coords)
 	}
 
 
+	/*------------------------------------------------------------------------*/
+	// OTHER
+
+	def arrayTable(coords: Map[Axis,Int]) =
+		elements(coords(structAxis))
+			.arrayTable(coords)
+
+
+	def elementFor(coords: Map[Axis,Int]) =
+		elements(coords(structAxis))
 }

@@ -8,3 +8,5 @@
 package net.dysphoria.blackboard
 
 class InternalFault(msg: String) extends RuntimeException(msg)
+
+class NotImplementedException extends InternalFault("Not implemented")

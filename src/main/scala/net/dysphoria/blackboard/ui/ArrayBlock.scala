@@ -48,6 +48,10 @@ class ArrayBlock extends TableBlock {
 						array(indices).toString, selected)
 	}
 
+	
+	/*------------------------------------------------------------------------*/
+	// HIT TESTING
+
 	// Don't have any child labels, so just return selection as-is
 	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int) =
 		NullSelection
@@ -71,7 +75,27 @@ class ArrayBlock extends TableBlock {
 
 
 	def arrayTable(coords: Map[Axis,Int]) = array
+
 	
+	/*------------------------------------------------------------------------*/
+	// NAVIGATION
+
+	def containsInEdgeArea(sel: LabelSelection) = (sel.block == this)
+
+	
+	def moveChildByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable =
+		nextOnAxes(axes(o), sel.coords, d) match {
+			case Some(coords) => CellSelection(coords)
+			case None => NullSelection
+		}
+
+
+	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = 
+		CellSelection(context 
+					  ++ axesEnd(plane, end)
+					  ++ hintCoords(axes(plane.opposite), hintSel.coords))
+
+
 
 	/*------------------------------------------------------------------------*/
 	// SIZING
