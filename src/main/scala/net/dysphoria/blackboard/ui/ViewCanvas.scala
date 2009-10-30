@@ -35,9 +35,9 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 	
 	val table: Table
-	val navigator = new Navigator {
+	/*val navigator = new Navigator {
 		val table = ViewCanvas.this.table
-	}
+	}*/
 	val ui = new UIState(this)
 	val cellEdit = new CellEditor(this)
 	var mouseX = -1

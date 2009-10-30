@@ -21,6 +21,8 @@ sealed abstract class Orientation {
 	def orient(a: Int, b: Int): (Int, Int)
 
 	def newPoint(breadth: Int, depth: Int): Point
+	def breadth(p: Point): Int
+	def depth(p: Point): Int
 	def breadthDepth(p: Point): (Int, Int)
 }
 
@@ -35,6 +37,8 @@ case object XOrientation extends Orientation {
 	def orient(x: Int, y: Int) = (x, y)
 
 	def newPoint(breadth: Int, depth: Int) = new Point(breadth, depth)
+	def breadth(p: Point) = p.x
+	def depth(p: Point) = p.y
 	def breadthDepth(p: Point) = (p.x, p.y)
 }
 
@@ -49,5 +53,7 @@ case object YOrientation extends Orientation {
 	def orient(y: Int, x: Int) = (y, x)
 
 	def newPoint(breadth: Int, depth: Int) = new Point(depth, breadth)
+	def breadth(p: Point) = p.y
+	def depth(p: Point) = p.x
 	def breadthDepth(p: Point) = (p.y, p.x)
 }

@@ -37,14 +37,13 @@ abstract class TableBlock {
 
 	def labelStyle(axis: Axis, index: Int) = defaultLabelStyle
 
-	def preferredLabelDepth(o: Orientation, a: Axis, i: Int) =
+	def preferredLabelDepth(labelOrientation: Orientation, a: Axis, i: Int) =
 		if (a.label(i) == "")
 			0
 		else
-			if (o.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
+			if (labelOrientation.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
 
-	def labelDepth(o: Orientation, a: Axis, i: Int) =
-		if (o.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
+	def labelDepth(labelOrientation: Orientation, a: Axis, i: Int): Int
 
 	def xLabelHeight(a: Axis, i: Int) = genericCellHeight
 	def yLabelWidth(a: Axis, i: Int) = genericCellWidth
@@ -110,13 +109,13 @@ abstract class TableBlock {
 
 	def renderLabels(gfx: DrawingContext, dataOrigin: Point, o:Orientation, coords: Map[Axis, Int]){
 		
-		def renderOwnLabels(gfx: DrawingContext, o: Orientation, b0: Int, d0: Int, availableDepth: Int,
+		def renderOwnLabels(b0: Int, d0: Int, availableDepth: Int,
 						 axes: Seq[Axis], coords: Map[Axis, Int]): Int = {
 
 			iterateAxis(b0, axes, coords, (b0, axis, i, remainingAxes)=>{
 					val updatedCoords = coords.update(axis, i)
 					val depth = labelDepth(o, axis, i)
-					val breadth = renderOwnLabels(gfx, o, b0, d0, availableDepth - depth, remainingAxes, updatedCoords)
+					val breadth = renderOwnLabels(b0, d0, availableDepth - depth, remainingAxes, updatedCoords)
 					var d1 = d0 - availableDepth
 					val r = o.choose(new Rectangle(b0, d1, breadth, depth),
 									 new Rectangle(d1, b0, depth, breadth))
@@ -130,10 +129,7 @@ abstract class TableBlock {
 				})
 		}
 
-		if (o.isX)
-			renderOwnLabels(gfx, o, dataOrigin.x, dataOrigin.y, topHeader, xAxes, coords)
-		else
-			renderOwnLabels(gfx, o, dataOrigin.y, dataOrigin.x, leftHeader, yAxes, coords)
+		renderOwnLabels(o.breadth(dataOrigin), o.depth(dataOrigin), nearHeader(o), axes(o), coords)
 	}
 
 
@@ -173,7 +169,7 @@ abstract class TableBlock {
 						val soFar = coords + (axis -> i)
 						val thisD = labelDepth(o, axis, i)
 						if (d < thisD)
-							LabelSelection(this, o, soFar, b)
+							new LabelSelection(this, o, soFar)
 						else
 							searchLabels(soFar,
 										 remain.drop(1),
@@ -201,7 +197,7 @@ abstract class TableBlock {
 	 * label area.
 	 */
 	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable
-	def moveChildByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable
+	def moveByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable
 
 	/**
 	 * Returns true iff this label is in my own label area. (This includes struct’s
@@ -215,36 +211,45 @@ abstract class TableBlock {
 			NullSelection // No axes == no selection.
 		else
 			if (labels == plane){ // 'Short' (transverse) edge of label block.
+				println("TODO: select edge of label area")
 				NullSelection // TODO
 				
 			}else{ // 'Long' (longitudinal) edge of label block
 				val axes = if (end.isFirst) Seq(theAxes.first) else theAxes
-				val coords = context ++ hintCoords(axes, hintSel.coords)
-				LabelSelection(this, labels, coords, 0/*TODO*/)
+				val coords = context ++ hintCoords(axes, hintSel.hintCoords)
+				new LabelSelection(this, labels, coords){
+					override val actualB = 0/*TODO: actualB*/
+					override val hintCoords = hintSel.coords ++ coords
+				}
 			}
 	}
 
-	def moveLabelByOne(sel: LabelSelection, o: Orientation, d: Direction): Selectable = {
+	protected def moveOwnLabelByOne(sel: LabelSelection, o: Orientation, d: Direction): Selectable = {
 		require(sel.block == this)
 		val theAxes = axes(sel.orientation)
-		if (o == sel.orientation) { // Moving parallel to axes.
+		if (o == sel.orientation) { // Moving longitudinally, along axes.
 			val usedAxes = theAxes.takeWhile(sel.coords.contains(_))
 			nextOnAxes(usedAxes, sel.coords, d) match {
-				case Some(c) => LabelSelection(this, o, c, sel.actualB)
+				case Some(c) => new LabelSelection(this, o, c)
 				case None => NullSelection
 			}
 			
-		}else{ // Moving perpendicular to axes (between axes).
+		}else{ // Moving transversely, across axes (between axes).
 			val i = lastAxisIn(theAxes, sel.coords)
 			val p = i + d.delta
 			if (p >= 0 && p < theAxes.length) {
 				val newCoords =
-					if (d.isForward)
-						sel.coords + (theAxes(p) -> 0)
-					else
+					if (d.isForward) {
+						val ax = theAxes(p)
+						val coord = sel.hintCoords.getOrElse(ax, 0)
+						sel.coords + (ax -> coord)
+					}else
 						sel.coords - (theAxes(i))
 					
-				LabelSelection(this, sel.orientation, newCoords, sel.actualB)
+				new LabelSelection(this, sel.orientation, newCoords){
+					override val actualB = sel.actualB
+					override val hintCoords = sel.hintCoords ++ newCoords
+				}
 			}else
 				NullSelection
 		}
@@ -376,7 +381,7 @@ abstract class TableBlock {
 
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, coords: Map[Axis,Int]) {
 		val selected = gfx.ui.selection match {
-			case lab: LabelSelection => lab.block == this && coordinatesMatch(coords, lab.coords)
+			case lab: LabelSelection => (lab.block == this) && (coords == lab.coords)
 			case _=> false
 		}
 		renderBasicCell(gfx, labelStyle(ax, index), bounds,
@@ -394,21 +399,21 @@ abstract class TableBlock {
 		gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
 		val fm = gc.getFontMetrics
 		val h = fm.getAscent + fm.getDescent
-		val y = (bounds.height - h)/2
+		val y = (bounds.height - h) / 2
 		val w = gc.stringExtent(value).x
 		val x =
 			if (style.textAlign == TextAlignLeft)
 				style.marginLeft
-			else{
-				if (style.textAlign == TextAlignCenter)
-					(bounds.width - w)/2
+			
+			else if (style.textAlign == TextAlignCenter)
+				(bounds.width - w) / 2
 
-				else if (style.textAlign == TextAlignRight)
-					bounds.width - style.marginRight - w
+			else if (style.textAlign == TextAlignRight)
+				bounds.width - style.marginRight - w
 
-				else
-					error("Unrecognised textAlign value "+style.textAlign)
-			}
+			else
+				error("Unrecognised textAlign value "+style.textAlign)
+			
 		// Only set clipping if we need to:
 		if (x < 0 || y < 0 || x+w >= bounds.width || y + h >= bounds.height)
 			g.withclip(bounds){

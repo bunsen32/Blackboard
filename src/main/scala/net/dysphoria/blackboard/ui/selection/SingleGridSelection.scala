@@ -11,4 +11,5 @@ package net.dysphoria.blackboard.ui.selection
  */
 abstract class SingleGridSelection extends Selectable {
 	val coords: Map[Axis, Int]
+	def hintCoords = coords
 }

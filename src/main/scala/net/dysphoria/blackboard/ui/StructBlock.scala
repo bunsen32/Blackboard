@@ -40,7 +40,7 @@ class StructBlock extends TableBlock {
 			sizeOf(YOrientation, yAxes, endsY))
 	}
 
-	override def labelDepth(o: Orientation, a: Axis, i: Int) =
+	def labelDepth(o: Orientation, a: Axis, i: Int) =
 		if (a == structAxis && isPrimaryAxis(o))
 			labelDepths(i)
 		else
@@ -54,11 +54,11 @@ class StructBlock extends TableBlock {
 	def headerDepth(o: Orientation, axes: Seq[Axis], element: Option[TableBlock]): Int = {
 		if (!axes.isEmpty){
 			val remainingAxes = axes.drop(1)
-			axes(0) match {
+			axes.first match {
 				case a: ArrayAxis =>
 					val header = headerDepth(o, remainingAxes, element)
 					val maxLabelDepth = (0 /: a.range)((max, i)=>
-						Math.max(max, preferredLabelDepth(orientation, a, i)))
+						Math.max(max, preferredLabelDepth(o, a, i)))
 					header + maxLabelDepth
 
 				case s: StructAxis =>
@@ -253,71 +253,99 @@ class StructBlock extends TableBlock {
 	}
 
 
-	override def moveLabelByOne(sel: LabelSelection, o: Orientation, d: Direction): Selectable = {
-		require(this containsInEdgeArea sel)
-		val el = elementFor(sel.coords)
-		if (!(el containsInEdgeArea sel))
-			// It’s one of our own axes’ labels:
-			super.moveLabelByOne(sel, o, d) orElse {
-				// If moving from our axes to child axes:
-				if ((sel.orientation == this.orientation) && (sel.orientation == o.opposite) && d.isForward)
-					el.selectEdgeLabel(sel.coords, sel.orientation, o, First, sel)
-				else
-					NullSelection
-			}
-		else
-			// It's one of our 'combined' child labels:
-			el.moveLabelByOne(sel, o, d) orElse {
-				// If moving from child axes to our axes:
-				if ((sel.orientation == this.orientation) && (sel.orientation == o.opposite) && d.isBack)
-					super.selectEdgeLabel(sel.coords, sel.orientation, o, Last, sel)
-				else
-					nextOnAxes(axes(o), sel.coords, d) match {
-						case Some(c) => LabelSelection(this, o, c, sel.actualB)
-						case None => NullSelection
+	def moveByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable = sel match {
+		case label: LabelSelection if this containsInEdgeArea label =>
+			val isTransverse = (label.orientation == o.opposite)
+			if (isPrimaryAxis(label.orientation)){
+				val el = elementFor(sel.coords)
+				
+				if (!(el containsInEdgeArea label)) // It’s one of our own axes’ labels:
+					moveOwnLabelByOne(label, o, d) orElse {
+						// If moving from our axes to child axes:
+						if (isTransverse && d.isForward)
+							el.selectEdgeLabel(sel.coords, label.orientation, o, First, sel)
+						else
+							NullSelection
 					}
-			}
-
-	}
-
-	
-	def moveChildByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable = {
-		val el = elements(sel.coords(structAxis))
-		sel match {
-			case label: LabelSelection if label.block == el =>
-				el.moveLabelByOne(label, o, d) orElse {
-					if (o == label.orientation) // Moving parallel to child label
-						nextOnAxes(axes(o), label.coords, d) match {
-							case Some(c) =>
-								val el = elementFor(c)
-								val subCoords = if (d.isForward) el first o else el last o
-								LabelSelection(el, label.orientation, c ++ subCoords, label.actualB)
-							case None => NullSelection
-						}
-
-					else // Moving perpendicular to child label
-						if (label.orientation == this.orientation){ // Child label
-							if (d.isForward)
-								selectEdgeChild(sel.coords, o, First, sel)
+					
+				else // It's one of our 'combined' child labels:
+					moveOwnLabelByOne(label, o, d) orElse {
+						// If moving from child axes to our axes:
+						if (isTransverse)
+							if (d.isBack)
+								super.selectEdgeLabel(sel.coords, label.orientation, o, Last, sel)
 							else
-								selectEdgeLabel(sel.coords, o, o.opposite, Last, sel)
+								NullSelection // Move off label area
 
-						}else{ // Element internal label
-							null
-						}
-				}
-			case _ =>
-				el.moveChildByOne(sel, o, d) orElse {
-					nextOnAxes(axes(o), sel.coords, d) match {
-						case Some(c) =>
-							val el = elementFor(c)
-							val subCoords = if (d.isForward) el first o else el last o
-							CellSelection(c ++ subCoords)
-
-						case None => NullSelection
+						else // is longitudianal
+							nextOnAxes(axes(o), sel.coords, d) match {
+								case Some(c) => new LabelSelection(this, o, c)
+								case None => NullSelection
+							}
 					}
+
+			}else{ // secondary axis
+				moveOwnLabelByOne(label, o, d)
+			}
+
+		case _ =>
+			val el = elements(sel.coords(structAxis))
+			el.moveByOne(sel, o, d) orElse {
+				sel match {
+					case label: LabelSelection if el.containsInEdgeArea(label) =>
+						assert(label.orientation != this.orientation) // Otherwise, it would be in my edge area.
+
+						val isTransverse = label.orientation == o.opposite
+						if (isTransverse){
+							if (d.isForward)
+								el.selectEdgeChild(sel.coords, o, First, sel)
+							else
+								nextOnAxes(axes(o), sel.coords, d) match {
+									case Some(c) =>
+										el.selectEdgeChild(c, o, Last, sel)
+									case None => NullSelection
+								}
+
+						}else // Moving longitutinal to child label
+							nextOnAxes(axes(o), sel.coords, d) match {
+								case Some(c) =>
+									assert(el == elementFor(c))
+									el.selectEdgeLabel(c, o, o, if (d.isForward) First else Last, sel)
+								case None => NullSelection
+							}
+
+					case _ => // Child cell, (NOT immediate child's label area).
+						if (o == this.orientation) // across child labels
+							if (d.isForward)
+								nextOnAxes(axes(o), sel.coords, d) match {
+									case Some(c) =>
+										val el = elementFor(c)
+										el.selectEdgeLabel(c, o.opposite, o, First, sel) orElse {
+											el.selectEdgeChild(c, o, First, sel)
+										}
+
+									case None => NullSelection
+								}
+							else
+								el.selectEdgeLabel(sel.coords, o.opposite, o, Last, sel) orElse {
+									nextOnAxes(axes(o), sel.coords, d) match {
+										case Some(c) =>
+											val el = elementFor(c)
+											el.selectEdgeChild(c, o, Last, sel)
+
+										case None => NullSelection
+									}
+								}
+						else
+							nextOnAxes(axes(o), sel.coords, d) match {
+								case Some(c) =>
+									val el = elementFor(c)
+									el.selectEdgeChild(c, o, if (d.isForward) First else Last, sel)
+
+								case None => NullSelection
+							}
 				}
-		}
+			}
 	}
 
 

@@ -39,6 +39,9 @@ class ArrayBlock extends TableBlock {
 		}
 	}
 
+	def labelDepth(labelOrientation: Orientation, a: Axis, i: Int) =
+		if (labelOrientation.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
+
 	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int]){
 		val selected = gfx.ui.selection match {
 			case CellSelection(coords) => coordinatesMatch(indices, coords)
@@ -83,11 +86,16 @@ class ArrayBlock extends TableBlock {
 	def containsInEdgeArea(sel: LabelSelection) = (sel.block == this)
 
 	
-	def moveChildByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable =
-		nextOnAxes(axes(o), sel.coords, d) match {
-			case Some(coords) => CellSelection(coords)
-			case None => NullSelection
-		}
+	def moveByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable = sel match {
+		case lab: LabelSelection if this containsInEdgeArea lab =>
+			moveOwnLabelByOne(lab, o, d)
+
+		case _ =>
+			nextOnAxes(axes(o), sel.coords, d) match {
+				case Some(coords) => CellSelection(coords)
+				case None => NullSelection
+			}
+	}
 
 
 	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = 
