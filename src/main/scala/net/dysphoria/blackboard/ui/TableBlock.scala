@@ -93,6 +93,7 @@ abstract class TableBlock {
 			iterateValues(origin.x, xAxes, rowCoords, (x, cellCoords)=>{
 				val w = breadthOfCell(XOrientation, cellCoords)
 				val bounds = new Rectangle(x, y, w, h)
+				println(w+" x "+h)
 				renderCell(gfx, bounds, cellCoords)
 				w
 			})
@@ -211,8 +212,21 @@ abstract class TableBlock {
 			NullSelection // No axes == no selection.
 		else
 			if (labels == plane){ // 'Short' (transverse) edge of label block.
-				println("TODO: select edge of label area")
-				NullSelection // TODO
+				if (hintSel.coords.contains(theAxes(0))){
+					val coords = context ++ theAxes.takeWhile(hintSel.coords.contains(_)).map(a => (a, end.of(a)))
+					new LabelSelection(this, labels, coords){
+						override val actualB = 0 //TODO (hintSel.actualB)
+						override val hintCoords = hintSel.coords ++ coords
+					}
+				} else{
+					val a = theAxes(0)
+					val coords = context + ((a, end.of(a)))
+					new LabelSelection(this, labels, coords){
+						override val actualB = 0 /*TODO!*/
+						override val hintCoords = hintSel.coords ++ coords
+					}
+				}
+
 				
 			}else{ // 'Long' (longitudinal) edge of label block
 				val axes = if (end.isFirst) Seq(theAxes.first) else theAxes
