@@ -18,8 +18,8 @@ import ui.Listeners._
 import ui.selection._
 
 abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(parent, SWT.H_SCROLL|SWT.V_SCROLL) {
-    private val Origin = new Point(0, 0)
-    val white = new RGB(255, 255, 255)
+	private val Origin = new Point(0, 0)
+	val white = new RGB(255, 255, 255)
 	val black = new RGB(0, 0, 0)
 	val red = new RGB(255, 0, 0)
 
@@ -31,9 +31,11 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
 		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
 		SWT.Help
-	)
+		)
 
-	
+	type GeometryChangedListener = Function[ViewCanvas,Unit]
+	val geometryChangedListeners = new mutable.HashSet[GeometryChangedListener]
+
 	val table: Table
 	/*val navigator = new Navigator {
 		val table = ViewCanvas.this.table
@@ -53,9 +55,6 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	var maxX = 0F
 	var maxY = 0F
 
-	type GeometryChangedListener = Function[ViewCanvas,Unit]
-	val geometryChangedListeners = new mutable.HashSet[GeometryChangedListener]
-	
 
 	addDisposeListener((e: DisposeEvent) => {
 			// Not much to do
@@ -296,6 +295,13 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		((x - offsetX) * scale).toInt,
 		((y - offsetY) * scale).toInt)
 
+	def modelToView(r: Rectangle) = new Rectangle(
+			((r.x - offsetX) * scale).toInt,
+			((r.y - offsetY) * scale).toInt,
+			(r.width * scale).toInt,
+			(r.height * scale).toInt)
+
+	
     def paintControl(e: PaintEvent) {
 		val gc = e.gc
 		gc.setAdvanced(true)

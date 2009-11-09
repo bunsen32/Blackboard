@@ -96,7 +96,13 @@ object Test {
 			elements = Seq(inner1, inner2, inner3)
 		}
 
-
+/*
+		val block = new ArrayBlock {
+			xAxes = Nil
+			yAxes = Nil
+			array = new TestArray(Array())
+		}
+*/
 		val table0 = new Table(block)
 		table0.computeSize
 		val view = new ui.ViewCanvas(shell, NONE) {

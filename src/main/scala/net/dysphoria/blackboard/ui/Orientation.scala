@@ -7,7 +7,7 @@
 
 package net.dysphoria.blackboard.ui
 
-import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.graphics.{Point, Rectangle}
 
 sealed abstract class Orientation {
 	def isX: Boolean
@@ -24,6 +24,8 @@ sealed abstract class Orientation {
 	def breadth(p: Point): Int
 	def depth(p: Point): Int
 	def breadthDepth(p: Point): (Int, Int)
+
+	def newRectangle(b0: Int, d0: Int, b: Int, d: Int): Rectangle
 }
 
 case object XOrientation extends Orientation {
@@ -40,6 +42,9 @@ case object XOrientation extends Orientation {
 	def breadth(p: Point) = p.x
 	def depth(p: Point) = p.y
 	def breadthDepth(p: Point) = (p.x, p.y)
+
+	def newRectangle(b0: Int, d0: Int, b: Int, d: Int) =
+		new Rectangle(b0, d0, b, d)
 }
 
 case object YOrientation extends Orientation {
@@ -56,4 +61,7 @@ case object YOrientation extends Orientation {
 	def breadth(p: Point) = p.y
 	def depth(p: Point) = p.x
 	def breadthDepth(p: Point) = (p.y, p.x)
+
+	def newRectangle(b0: Int, d0: Int, b: Int, d: Int) =
+		new Rectangle(d0, b0, d, b)
 }

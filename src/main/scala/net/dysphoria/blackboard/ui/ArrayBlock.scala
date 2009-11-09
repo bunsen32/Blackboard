@@ -113,11 +113,28 @@ class ArrayBlock extends TableBlock {
 
 
 	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
-		val i = cellIndexOf(o, coords)
-		val breadth = breadthOfCell(o, coords)
-		val b0 = offset + i * breadth // Assume all cells same width
-		new Range(b0, b0 + breadth, 1)
+		val breadth = breadthOfCell(o, coords) // Assume all cells same width
+		val b0 = cellIndexOf(o, coords) * breadth + offset
+		val b = 1 * breadth // Cell count must == 1
+		new Range(b0, (b0 + b), 1)
 	}
 
 
+	def breadthOwnLabelBounds(offset: Int, o: Orientation, coords: Map[Axis,Int], num: Int) = {
+		val i = cellIndexOf(o, coords)
+		val breadth = breadthOfCell(o, coords) // Assume all cells same width
+		val b0 = offset + (i * breadth)
+		new Range(
+			b0,
+			b0 + (num * breadth), 1)
+	}
+
+
+	def childLabelBounds(dataOrigin: Point, lab: LabelSelection) =
+		error("childLabelBounds: ArrayBlock does not have child elements.")
+
+
+	/*------------------------------------------------------------------------*/
+
+	override def toString = "ArrayBlock"
 }

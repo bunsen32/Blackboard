@@ -49,6 +49,7 @@ class StructBlock extends TableBlock {
 
 	override def isPrimaryAxis(o: Orientation) = (o == orientation)
 
+	def starts(o: Orientation)(i: Int) = if (i == 0) 0 else ends(o)(i - 1)
 	def ends(o: Orientation) = if (o.isX) endsX else endsY
 
 	def headerDepth(o: Orientation, axes: Seq[Axis], element: Option[TableBlock]): Int = {
@@ -377,14 +378,48 @@ class StructBlock extends TableBlock {
 			maxElementDepth
 	}
 
+	/**
+	 * Returns the pixel range of the breadth (in the orientation ‘o’) of the cell(s)
+	 * given by <var>coords</var>.
+	 */
 	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range = {
 		val i = cellIndexOf(o, coords)
-		val b = if (i == 0) 0 else ends(o)(i - 1)
+		val b = offset + starts(o)(i)
 		val el = elementFor(coords)
-		val h = el.firstHeader(o)
-		el.breadthCellBounds(offset + b + h, o, coords)
+		// If we're looking at orientation transverse to structAxis, all sub-block
+		// headers are subsumed inside this block's own logitudinal header:
+		val h = if (o == this.orientation) el.firstHeader(o) else 0
+		el.breadthCellBounds(b + h, o, coords)
 	}
 
+	
+	def breadthOwnLabelBounds(offset: Int, o: Orientation, coords: Map[Axis,Int], num: Int) = {
+		val i = cellIndexOf(o, coords)
+		new Range(
+			offset + starts(o)(i), 
+			offset + ends(o)(i + num - 1), 1)
+	}
+
+
+	def childLabelBounds(offset: Point, lab: LabelSelection): Rectangle = {
+		val (b0, d0) = this.orientation.breadthDepth(offset)
+		val el = elementFor(lab.coords)
+		val bOffset = starts(orientation)(cellIndexOf(orientation, lab.coords))
+		val childOffset = if (this containsInEdgeArea lab){
+				assert(this.orientation == lab.orientation)
+				orientation.newPoint(
+					b0 + bOffset,
+					d0)
+
+			}else{
+				val perpendicular = orientation.opposite
+				val dOffset = starts(perpendicular)(cellIndexOf(perpendicular, lab.coords))
+				orientation.newPoint(
+					b0 + bOffset + el.firstHeader(orientation),
+					d0 + dOffset)
+			}
+		el.labelBounds(childOffset, lab)
+	}
 
 	/*------------------------------------------------------------------------*/
 	// OTHER
@@ -396,4 +431,9 @@ class StructBlock extends TableBlock {
 
 	def elementFor(coords: Map[Axis,Int]) =
 		elements(coords(structAxis))
+
+
+	/*------------------------------------------------------------------------*/
+
+	override def toString = "ArrayBlock"
 }

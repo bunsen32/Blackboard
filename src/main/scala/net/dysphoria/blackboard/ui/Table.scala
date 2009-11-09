@@ -76,6 +76,10 @@ class Table(val topBlock: TableBlock) extends Displayable {
 		return new Rectangle(x.start, y.start, x.length, y.length)
 	}
 
+	def labelBounds(lab: LabelSelection): Rectangle = {
+		topBlock.labelBounds(new Point(leftHeader, topHeader), lab)
+	}
+
 
 	def arrayTable(coords: Map[Axis,Int]) = topBlock.arrayTable(coords)
 

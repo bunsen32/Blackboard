@@ -11,6 +11,4 @@ import blackboard.ui.Axis
 /**
  * A single selected data cell.
  */
-case class CellSelection(coords: Map[Axis, Int]) extends SingleGridSelection {
-	def hintCoords = coords
-}
+case class CellSelection(coords: Map[Axis, Int]) extends SingleGridSelection

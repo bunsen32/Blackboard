@@ -93,7 +93,6 @@ abstract class TableBlock {
 			iterateValues(origin.x, xAxes, rowCoords, (x, cellCoords)=>{
 				val w = breadthOfCell(XOrientation, cellCoords)
 				val bounds = new Rectangle(x, y, w, h)
-				println(w+" x "+h)
 				renderCell(gfx, bounds, cellCoords)
 				w
 			})
@@ -279,11 +278,45 @@ abstract class TableBlock {
 	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]): Int
 
 
+	/**
+	 * Returns the pixel range of the breadth (in the orientation ‘o’) of the cell(s)
+	 * given by <var>coords</var>.
+	 */
 	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range
 
 
-	def labelBounds(coords: Map[Axis,Int]): Rectangle = {
-		new Rectangle(0, 0, 0, 0)
+	def labelBounds(dataOrigin: Point, lab: LabelSelection): Rectangle = {
+		if (lab.block == this) {
+			val o = lab.orientation
+			val longiRange = breadthOwnLabelBounds(o.breadth(dataOrigin), lab)
+			val transRange = depthOwnLabelBounds(o.depth(dataOrigin), lab)
+			o.newRectangle(longiRange.start, transRange.start, longiRange.length, transRange.length)
+
+		}else{
+			childLabelBounds(dataOrigin, lab)
+		}
+	}
+
+	def childLabelBounds(dataOrigin: Point, lab: LabelSelection): Rectangle
+
+	def breadthOwnLabelBounds(offset: Int, lab: LabelSelection): Range = {
+		assert(lab.block == this)
+		val o = lab.orientation; val coords = lab.coords
+		val num = cellCountOf(o, coords)
+		breadthOwnLabelBounds(offset, o, coords, num)
+	}
+
+	def breadthOwnLabelBounds(offset: Int, o: Orientation, coords: Map[Axis,Int], num: Int): Range
+
+
+	def depthOwnLabelBounds(dataOrigin: Int, lab: LabelSelection): Range = {
+		assert(lab.block == this)
+		val o = lab.orientation
+		val coords = lab.coords
+		val allDepths =	for(ax <- axes(o).take(lab.axisIndex + 1))
+			yield labelDepth(o, ax, coords(ax))
+
+		rangeOfLast(dataOrigin - nearHeader(o), allDepths)
 	}
 
 
@@ -365,13 +398,29 @@ abstract class TableBlock {
 			}))
 
 
+	/**
+	 * Given some coordinates, returns how many cells that is in the given
+	 * orientation. Note that if there are missing coordinates, they will be
+	 * assumed to be zero.
+	 *
+	 * Note that other things probably assume that if you have one missing coord,
+	 * all subsequent coords are missing too!
+	 */
 	def cellIndexOf(o: Orientation, coords: Map[Axis, Int]): Int = {
 		var i = 0
-		for (ax <- axes(o))
-			i = i * ax.length + coords(ax)
+		var hasFurtherCoords = true
+		for (ax <- axes(o)) {
+			hasFurtherCoords &&= coords.contains(ax)
+			val c = if (hasFurtherCoords) coords(ax) else 0
+			i = i * ax.length + c
+		}
 		i
 	}
 
+	def cellCountOf(o: Orientation, coords: Map[Axis, Int]): Int = {
+		val axesWithValues = axes(o).dropWhile(coords.contains(_))
+		(1 /: axesWithValues)((product, ax) => product * ax.length)
+	}
 
 	def arrayTable(coords: Map[Axis,Int]): ArrayTable
 
@@ -389,13 +438,30 @@ abstract class TableBlock {
 			case n => n - 1
 		}
 
+	def rangeOfLast(offset: Int, numbers: Seq[Int]) = {
+		var i0 = offset
+		var i1 = offset
+		for(n <- numbers){
+			i0 = i1
+			i1 = i0 + n
+		}
+		new Range(i0, i1, 1)
+	}
+
+	
 	/*------------------------------------------------------------------------*/
 	// GFX UTILITY METHODS
 
 
-	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, coords: Map[Axis,Int]) {
+	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, thisCoords: Map[Axis,Int]) {
 		val selected = gfx.ui.selection match {
-			case lab: LabelSelection => (lab.block == this) && (coords == lab.coords)
+			case lab: LabelSelection => (lab.block == this) && (thisCoords == lab.coords)
+				
+			case labs: LabelRangeSelection if (labs.block == this) && thisCoords.contains(labs.axis) =>
+				val thisV = thisCoords(labs.axis)
+				lazy val selCoords = labs.coords + ((labs.axis, thisV))
+				(labs.range contains thisV) && (selCoords == thisCoords)
+
 			case _=> false
 		}
 		renderBasicCell(gfx, labelStyle(ax, index), bounds,

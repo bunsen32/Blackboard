@@ -10,25 +10,9 @@ package net.dysphoria.blackboard.ui
 import org.eclipse.swt.graphics.Point
 import selection._
 
-abstract sealed class DragState
-case object NoDrag extends DragState
-/**
- * Represents the fact that the mouse is down, ready for dragging, but we have not
- * yet entered the drag state. <var>x</var> and <var>y</var> represent the mouse
- * coordinates relative to the current <var>UIState.focus<var>.
- */
-case class MouseDown(x: Int, y: Int) extends DragState
-/**
- * Whether we are in the midst of a 'drag' operation
- * (as opposed to merely mid-'click').
- */
-case object Dragging extends DragState
-
 import org.eclipse.swt.widgets.Control
 
 class UIState(val control: ViewCanvas) {
-	//def grid = control.everything
-
 	private var originalSelection: Selectable = NullSelection
 	private var currentSelection: Selectable = NullSelection
 	var isIncludingNotExcluding = false
@@ -38,6 +22,7 @@ class UIState(val control: ViewCanvas) {
 	private var _dropTarget: Option[Displayable] = None
 
 	private var _selectLargeBits = false
+	private val _selectionEditingOverlay = new SelectionEditingOverlay(control)
 
 	def select(s: Selectable) {
 		originalSelection = s
@@ -91,6 +76,7 @@ class UIState(val control: ViewCanvas) {
 		currentSelection = s
 		control.redraw
 		if (fineEditMode) updateFineEditMode
+		onChange
 	}
 
 	def selectLargeBits = _selectLargeBits
@@ -137,6 +123,8 @@ class UIState(val control: ViewCanvas) {
 
 	def makeRange(base: Selectable, extension: Selectable): Selectable = {
 		(base, extension) match {
+			case (s0: LabelSelection, s1: LabelSelection) =>
+				s0 to s1
 /*
 			case (s: HasTableCell, cell: HasTableCell) if cell.block == s.block =>
 				s to cell
@@ -147,6 +135,29 @@ class UIState(val control: ViewCanvas) {
 			case _ => NullSelection
 		}
 	}
+
+	def onChange {
+		val sel = currentSelection match {
+			case cell: CellSelection if singleCellTable =>
+				_selectionEditingOverlay.selection = cell
+				true
+			case lab: LabelSelection =>
+				_selectionEditingOverlay.selection = lab
+				true
+			case labs: LabelRangeSelection =>
+				_selectionEditingOverlay.selection = labs
+				true
+			case _ =>
+				// clear context buttons / selection-related operations
+				false
+		}
+		_selectionEditingOverlay.visible = sel
+	}
+
+	def singleCellTable = control.table.topBlock match {
+			case a: ArrayBlock if a.xAxes.length == 0 && a.yAxes.length == 0 => true
+			case _ => false
+		}
 
 }
 
