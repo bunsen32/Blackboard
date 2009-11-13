@@ -27,11 +27,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	private val cellEditListener: Listener = handleCellEditEvent _
 	private val interestingEvents = Array(
 		SWT.Resize,
-		SWT.KeyDown, SWT.KeyUp, SWT.FocusOut,
+		SWT.KeyDown, SWT.KeyUp, SWT.HardKeyDown, SWT.FocusOut,
 		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
 		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
 		SWT.Help
 		)
+	private var nonModifierKeyPressed = false
 
 	type GeometryChangedListener = Function[ViewCanvas,Unit]
 	val geometryChangedListeners = new mutable.HashSet[GeometryChangedListener]
@@ -95,7 +96,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 		e.`type` match {
 			// Events which fire regardless of widget:
-			case SWT.MouseWheel=> if (state.isAltBehaviour) {
+			case SWT.MouseWheel => if (state.isAltBehaviour) {
 				val oldScale = scale
 				val newScale = (0.2F max power(oldScale, 1.05F, e.count) min 5.0F)
 				if (oldScale != newScale) {
@@ -139,12 +140,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 					}
 				}*/
 
-			case SWT.MouseUp => {
+			case SWT.MouseUp =>
 				if (ui.dragState == MouseDown)
 					ui.select(ui.focus)
 				ui.dragState = NoDrag
-			}
-			case SWT.MouseMove => {
+		
+			case SWT.MouseMove =>
 				setCursor(null)
 				ui.dragState match {
 					case NoDrag => {
@@ -157,25 +158,37 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 					}
 					case _ => ;//ignore
 				}
-			}
-			case SWT.DragDetect => {
+			
+			case SWT.DragDetect => 
 				if (ui.dragState.isInstanceOf[MouseDown]){
 					ui.selection match {
 						//case b: SingleGridSpace => DragOperation.start(new BlockDragClient(this))
 						case _ => ;//ignore
 					}
 				}
-			}
-			case SWT.MouseExit => {mouseX = -1; redraw}
+			
+			case SWT.MouseExit => mouseX = -1; redraw
 			case SWT.MouseEnter=> ;
-			case SWT.KeyDown => {
+			case SWT.KeyDown =>
+				// Hide mouse pointer if user presses a non-modifier key. 
+				// Ignore repeats.
+				if ((e.keyCode & SWT.MODIFIER_MASK) == 0 && ! nonModifierKeyPressed) {
+					this.setCursor(hiddenCursor)
+					nonModifierKeyPressed = true
+				}
+
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = true
-				this.setCursor(hiddenCursor)
 				processKey(e)
-			}
-			case SWT.KeyUp => {
+			
+			case SWT.KeyUp =>
+				if ((e.keyCode & SWT.MODIFIER_MASK) == 0) {
+					nonModifierKeyPressed = false
+				}
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = false
-			}
+
+			case SWT.HardKeyDown =>
+				println("keyCode & MASK = " + (e.keyCode & SWT.MODIFIER_MASK))
+
 			case SWT.FocusOut =>
 				// TODO: get rid of any overlays
 				
