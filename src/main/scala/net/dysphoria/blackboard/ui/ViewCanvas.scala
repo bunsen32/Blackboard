@@ -27,7 +27,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	private val cellEditListener: Listener = handleCellEditEvent _
 	private val interestingEvents = Array(
 		SWT.Resize,
-		SWT.KeyDown, SWT.KeyUp,
+		SWT.KeyDown, SWT.KeyUp, SWT.FocusOut,
 		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
 		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
 		SWT.Help
@@ -41,7 +41,9 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val table = ViewCanvas.this.table
 	}*/
 	val ui = new UIState(this)
+	val policy = new EditingStatePolicy(this)
 	val cellEdit = new CellEditor(this)
+	
 	var mouseX = -1
 	var mouseY = 0
 	var scale = 1.0F
@@ -55,10 +57,20 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	var maxX = 0F
 	var maxY = 0F
 
+	val hiddenCursor = {
+		// create a cursor with a transparent image
+		val display = getDisplay
+		val white = display.getSystemColor(SWT.COLOR_WHITE);
+		val black = display.getSystemColor(SWT.COLOR_BLACK);
+		val palette = new PaletteData(Array(white.getRGB(), black.getRGB()))
+		val sourceData = new ImageData(16, 16, 1, palette);
+		sourceData.transparentPixel = 0;
+		new Cursor(display, sourceData, 0, 0);
+	}
+
 
 	addDisposeListener((e: DisposeEvent) => {
-			// Not much to do
-						})
+			hiddenCursor.dispose})
     addPaintListener(paintControl _)
 
 	interestingEvents foreach(evt => addListener(evt, listener))
@@ -133,6 +145,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 				ui.dragState = NoDrag
 			}
 			case SWT.MouseMove => {
+				setCursor(null)
 				ui.dragState match {
 					case NoDrag => {
 						val isDragSelect = state.isPrimaryButton
@@ -157,11 +170,15 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			case SWT.MouseEnter=> ;
 			case SWT.KeyDown => {
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = true
+				this.setCursor(hiddenCursor)
 				processKey(e)
 			}
 			case SWT.KeyUp => {
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = false
 			}
+			case SWT.FocusOut =>
+				// TODO: get rid of any overlays
+				
 			case _ => /* ignore */;
 		}
 	}
@@ -416,6 +433,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			case ex => {println(ex); throw ex}
 		}
     }
+
 
 }
 

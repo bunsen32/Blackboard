@@ -7,6 +7,7 @@
 
 package net.dysphoria.blackboard.ui
 
+import scala.collection.mutable
 import org.eclipse.swt.graphics.Point
 import selection._
 
@@ -22,7 +23,9 @@ class UIState(val control: ViewCanvas) {
 	private var _dropTarget: Option[Displayable] = None
 
 	private var _selectLargeBits = false
-	private val _selectionEditingOverlay = new SelectionEditingOverlay(control)
+
+	type StateChangedListener = Function[UIState, Unit]
+	val stateChangedListeners = new mutable.HashSet[StateChangedListener]
 
 	def select(s: Selectable) {
 		originalSelection = s
@@ -137,27 +140,8 @@ class UIState(val control: ViewCanvas) {
 	}
 
 	def onChange {
-		val sel = currentSelection match {
-			case cell: CellSelection if singleCellTable =>
-				_selectionEditingOverlay.selection = cell
-				true
-			case lab: LabelSelection =>
-				_selectionEditingOverlay.selection = lab
-				true
-			case labs: LabelRangeSelection =>
-				_selectionEditingOverlay.selection = labs
-				true
-			case _ =>
-				// clear context buttons / selection-related operations
-				false
-		}
-		_selectionEditingOverlay.visible = sel
+		for(ob <- stateChangedListeners) ob.apply(this)
 	}
-
-	def singleCellTable = control.table.topBlock match {
-			case a: ArrayBlock if a.xAxes.length == 0 && a.yAxes.length == 0 => true
-			case _ => false
-		}
 
 }
 
