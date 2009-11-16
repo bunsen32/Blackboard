@@ -13,7 +13,7 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 	val elementType = t.core.String
 
 	private var _dimensions: Array[ArrayAxis] = initialDims.toArray
-	private var _data: mutable.Map[Array[Int], Any] = new mutable.HashMap
+	private var _data = new IntArrayHashTable
 
 	def dimensions = _dimensions
 
@@ -60,7 +60,7 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 	}
 
 	private def remapDimensions(keyFunc: Array[Int]=>Array[Int]) {
-		var newData = new mutable.HashMap[Array[Int], Any]
+		var newData = new IntArrayHashTable
 		for((k, v) <- _data)
 			keyFunc(k) match {
 				case null => // do nothing
@@ -78,4 +78,15 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 	def flatten(coords: Map[Axis,Int]) =
 		for(d <- dimensions) yield coords(d)
 
+
+	class IntArrayHashTable extends mutable.HashMap[Array[Int], Any] {
+		override def elemEquals(a: Array[Int], b: Array[Int]): Boolean = {
+			if (a.length != b.length) return false
+			for(i <- 0 until a.length if a(i) != b(i)) return false
+			return true
+		}
+
+		override def elemHashCode(a: Array[Int]) =
+			(0 /: a)((sum, v) => (sum * 41) ^ improve(v))
+	}
 }

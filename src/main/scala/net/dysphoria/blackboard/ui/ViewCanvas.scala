@@ -233,7 +233,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	 * Provides the limits for scrolling, and updates the scrollbars.
 	 * Do not confuse with (SWT-compatible) method 'computeSize'.
 	 */
-	private def computeBounds {
+	def computeBounds {
 		val clientArea = getClientArea
 		val canvasWidth = (clientArea.width / scale)
 		val canvasHeight = (clientArea.height / scale)

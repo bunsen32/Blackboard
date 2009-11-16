@@ -144,6 +144,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	// update the view.
 	private def updateDisplay {
 		control.table.computeSize
+		control.computeBounds
 		control.redraw
 		updateState
 	}
