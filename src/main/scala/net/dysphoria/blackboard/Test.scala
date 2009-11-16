@@ -68,7 +68,7 @@ object Test {
 			elements = Seq(data, total)
 		}
 */
-		val axisS1 = new StructAxis{elements = List("Boh", "Bloo", "Blah"); interItemLine = heavyLine}
+/*		val axisS1 = new StructAxis{elements = List("Boh", "Bloo", "Blah"); interItemLine = heavyLine}
 		val axisA1 = new ArrayAxis{length=3; interItemLine = hairLine}
 		val axisA2 = new ArrayAxis{length=3; interItemLine = lightLine}
 		val axisA3 = new ArrayAxis{length=4; interItemLine = lightLine}
@@ -95,14 +95,14 @@ object Test {
 			yAxes = Seq(axisA3)
 			elements = Seq(inner1, inner2, inner3)
 		}
+*/
 
-/*
 		val block = new ArrayBlock {
 			xAxes = Nil
 			yAxes = Nil
-			array = new TestArray(Array())
+			array = new FlexibleArrayTable(Nil)
 		}
-*/
+
 		val table0 = new Table(block)
 		table0.computeSize
 		val view = new ui.ViewCanvas(shell, NONE) {

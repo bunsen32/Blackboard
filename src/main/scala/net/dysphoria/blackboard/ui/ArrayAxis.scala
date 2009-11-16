@@ -7,7 +7,16 @@
 
 package net.dysphoria.blackboard.ui
 
-class ArrayAxis extends Axis {
-	var length = 1
+class ArrayAxis(initialLength: Int) extends Axis {
+	var length = initialLength
 	def label(i: Int) = i.toString
+
+	def internalInsert(index: Int) {
+		length += 1
+	}
+
+	def internalDelete(index: Int) {
+		assert(length >= 1)
+		length -= 1
+	}
 }

@@ -32,6 +32,14 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		EditingNodeSpec(Down, insertDownSame, cellInsertSimilarDown _),
 		EditingNodeSpec(Down, insertDownDiff, cellInsertDifferentDown _))
 
+	val singleCellXCtrls = Seq(
+		EditingNodeSpec(Right, insertRightSame, cellInsertSimilarRight _),
+		EditingNodeSpec(Right, insertRightDiff, cellInsertDifferentRight _))
+
+	val singleCellYCtrls = Seq(
+		EditingNodeSpec(Down, insertDownSame, cellInsertSimilarDown _),
+		EditingNodeSpec(Down, insertDownDiff, cellInsertDifferentDown _))
+
 	val singleColCtrls = Seq(
 		EditingNodeSpec(Right, insertRightSame, labelInsertSimilarAfter _),
 		EditingNodeSpec(Right, insertRightDiff, labelInsertDifferentAfter _))
@@ -43,9 +51,18 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	control.ui.stateChangedListeners += (_ => updateState)
 
 	def updateState {
+		val noXAxes = (topBlock.xAxes.length == 0)
+		val noYAxes = (topBlock.yAxes.length == 0)
 		control.ui.selection match {
-			case cell: CellSelection if editingSingleCellTable =>
+			case cell: CellSelection if noXAxes || noYAxes =>
 				val rect = control.table.cellBounds(cell.coords)
+				val ctrls = if (noXAxes && noYAxes)
+						singleCellCtrls
+					else if (noXAxes)
+						singleCellXCtrls
+					else
+						singleCellYCtrls
+				_selectionEditingOverlay.set(rect, ctrls)
 
 			case lab: LabelSelection =>
 				val rect = control.table.labelBounds(lab)
@@ -63,14 +80,20 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		
 	}
 
-	def editingSingleCellTable = control.table.topBlock match {
-			case a: ArrayBlock if a.xAxes.length == 0 && a.yAxes.length == 0 => true
-			case _ => false
-		}
-
 
 	def labelInsertSimilarAfter {
-		println("insertSimilarAfter")
+		control.ui.selection match {
+			case lab: LabelSelection =>
+				lab.axis match {
+					case a: ArrayAxis =>
+						a.insert(lab.index + 1)
+						updateDisplay
+
+					case s: StructAxis =>
+						// TODO: make this work.
+				}
+			case _ => //ignore
+		}
 	}
 
 	def labelInsertDifferentAfter {
@@ -79,7 +102,14 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 
 	def cellInsertSimilarRight {
-		println("cellInsertSimilarRight")
+		// TODO: should be a check (and fail if false) rather than an assertion.
+		assert(topBlock.xAxes.length == 0)
+
+		val newAxis = new ArrayAxis(1)
+		newAxis.insert(1) // A new column
+		topBlock.xAxes = List(newAxis)
+		forAllArraysInBlock(topBlock, a => a.addDimension(newAxis))
+		updateDisplay
 	}
 
 	def cellInsertDifferentRight {
@@ -87,13 +117,38 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	}
 
 	def cellInsertSimilarDown {
-		println("cellInsertSimilarDown")
+		// TODO: should be a check (and fail if false) rather than an assertion.
+		assert(topBlock.yAxes.length == 0)
+
+		val newAxis = new ArrayAxis(1)
+		newAxis.insert(1) // A new column
+		topBlock.yAxes = List(newAxis)
+		forAllArraysInBlock(topBlock, a => a.addDimension(newAxis))
+		updateDisplay
 	}
 
 	def cellInsertDifferentDown {
 		println("cellInsertDifferentDown")
 	}
 
+	private def forAllArraysInBlock(b: TableBlock, f: FlexibleArrayTable=>Unit): Unit =
+		b match {
+			case a: ArrayBlock => f(a.array) // TODO
+			case b: StructBlock =>
+				for(el <- b.elements)
+					forAllArraysInBlock(el, f)
+		}
+
+
+	// TODO: This should not be required; changed to model should automatically
+	// update the view.
+	private def updateDisplay {
+		control.table.computeSize
+		control.redraw
+		updateState
+	}
+
+	def topBlock = control.table.topBlock
 
 	def dispose {
 		insertRightSame.dispose

@@ -7,15 +7,24 @@
 
 package net.dysphoria.blackboard.ui
 
-import data.{types=>t}
+import scala.collection.mutable
 
 /**
  * The 'type' of a structure.
  */
-abstract class StructAxis extends Axis {
+class StructAxis extends Axis {
 	//class Element(var name: String)
 
-	var elements: Seq[String] = Nil
+	val elements = new mutable.ArrayBuffer[String]()
 	def label(i: Int) = elements(i)
 	def length = elements.length
+
+	def internalInsert(index: Int) {
+		elements.insert(index, "label" + (length + 1))
+	}
+
+	def internalDelete(index: Int) {
+		assert(length >= 1)
+		elements.remove(index)
+	}
 }

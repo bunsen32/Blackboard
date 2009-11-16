@@ -14,23 +14,12 @@ abstract class ArrayTable extends Aggregate {
 	def dimensions: Seq[ArrayAxis]
 	def elementType: t.Type
 	def arity = dimensions.length
-	//def apply(c: Coord): Any
-	def apply(c: Map[Axis, Int]) = flatApply(flatten(c))
 
-	def update(c: Map[Axis,Int], value: Any) = flatUpdate(flatten(c), value)
+	def apply(c: Map[Axis, Int]): Any
 
-	protected def flatApply(p: Int): Any
+	def update(c: Map[Axis,Int], value: Any): Unit
 
-	protected def flatUpdate(p: Int, value: Any)
 
-	protected def flatten(c: Map[Axis,Int]) = {
-		var p = 0
-		for(d<-dimensions){
-			val i = c.getOrElse(d, error("Axis "+d+" is not provided"))
-			p = (p * d.length) + i
-		}
-		p
-	}
 	//def partiallyApply(c: Coord): Array
 
 	// some kind of observer pattern to observe dimensions, and modify table.

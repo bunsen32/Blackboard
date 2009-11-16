@@ -20,6 +20,8 @@ case class LabelSelection(block: TableBlock, orientation: Orientation, coords: M
 		assert(num != 0)
 		num - 1
 	}
+	def axis = block.axes(orientation)(axisIndex)
+	def index = coords(axis)
 
 	def to(other: LabelSelection): Selectable = {
 		if (this.block == other.block &&

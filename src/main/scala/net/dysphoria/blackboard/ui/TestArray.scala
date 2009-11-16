@@ -15,6 +15,18 @@ class TestArray(val dimensions: Seq[ArrayAxis]) extends ArrayTable {
 
 	val modifications = new mutable.ArrayBuffer[String]
 
+	def apply(c: Map[Axis, Int]) = flatApply(flatten(c))
+
+	def update(c: Map[Axis,Int], value: Any) = flatUpdate(flatten(c), value)
+
+	protected def flatten(c: Map[Axis,Int]) = {
+		var p = 0
+		for(d<-dimensions){
+			val i = c.getOrElse(d, error("Axis "+d+" is not provided"))
+			p = (p * d.length) + i
+		}
+		p
+	}
 	def flatApply(p: Int) = {
 		val s = if (p < modifications.length) modifications(p) else null
 		if (s != null) s else strings(p % strings.length)

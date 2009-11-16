@@ -12,7 +12,7 @@ import gfx._
 import selection._
 
 class ArrayBlock extends TableBlock {
-	var array: ArrayTable = null
+	var array: FlexibleArrayTable = null
 	val cellStyle = new CellStyle
 
 	def computeInnerSizeAndHeaders {
