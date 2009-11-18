@@ -28,10 +28,10 @@ sealed abstract class Orientation {
 	def newRectangle(b0: Int, d0: Int, b: Int, d: Int): Rectangle
 }
 
-case object XOrientation extends Orientation {
+case object Horizontal extends Orientation {
 	def isX = true
 	def isY = false
-	def opposite = YOrientation
+	def opposite = Vertical
 
 	def choose(x: Int, y: Int) = x
 	def choose[A](x: =>A, y: =>A) = x
@@ -47,10 +47,10 @@ case object XOrientation extends Orientation {
 		new Rectangle(b0, d0, b, d)
 }
 
-case object YOrientation extends Orientation {
+case object Vertical extends Orientation {
 	def isX = false
 	def isY = true
-	def opposite = XOrientation
+	def opposite = Horizontal
 
 	def choose(x: Int, y: Int) = y
 	def choose[A](x: =>A, y: =>A) = y

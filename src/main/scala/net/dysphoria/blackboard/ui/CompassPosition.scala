@@ -12,26 +12,26 @@ sealed abstract class CompassPosition {
 }
 
 object Up extends CompassPosition {
-	val orientation = YOrientation
+	val orientation = Vertical
 	val end = First
 }
 object Down extends CompassPosition {
-	val orientation = YOrientation
+	val orientation = Vertical
 	val end = Last
 }
 object Left extends CompassPosition {
-	val orientation = XOrientation
+	val orientation = Horizontal
 	val end = First
 }
 object Right extends CompassPosition {
-	val orientation = XOrientation
+	val orientation = Horizontal
 	val end = Last
 }
 
 
 object CompassPosition {
 	def apply(o: Orientation, e: End) =
-		if (o == YOrientation)
+		if (o == Vertical)
 			if (e == First) Up else Down
 		else
 			if (e == First) Left else Right

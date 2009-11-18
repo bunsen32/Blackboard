@@ -7,14 +7,14 @@
 
 package net.dysphoria.blackboard.ui
 
+import scala.collection.mutable
 import org.eclipse.swt.graphics._
 import gfx._
 import ui.selection._
 
-class StructBlock extends TableBlock {
-	var orientation: Orientation = XOrientation
-	var structAxis: StructAxis = null
-	var elements: Seq[TableBlock] = Nil
+class StructBlock(val structAxis: StructAxis) extends TableBlock {
+	var orientation: Orientation = Horizontal
+	var elements = new mutable.ArrayBuffer[TableBlock]
 	var labelDepths: Array[Int] = null
 	var endsX: Array[Int] = null
 	var endsY: Array[Int] = null
@@ -33,11 +33,11 @@ class StructBlock extends TableBlock {
 		endsX = new Array[Int]((1 /: xAxes)(_ * _.length))
 		endsY = new Array[Int]((1 /: yAxes)(_ * _.length))
 
-		topHeader = headerDepth(XOrientation, xAxes, None)
-		leftHeader = headerDepth(YOrientation, yAxes, None)
+		topHeader = headerDepth(Horizontal, xAxes, None)
+		leftHeader = headerDepth(Vertical, yAxes, None)
 		innerSize = new Point(
-			sizeOf(XOrientation, xAxes, endsX),
-			sizeOf(YOrientation, yAxes, endsY))
+			sizeOf(Horizontal, xAxes, endsX),
+			sizeOf(Vertical, yAxes, endsY))
 	}
 
 	def labelDepth(o: Orientation, a: Axis, i: Int) =
@@ -198,7 +198,7 @@ class StructBlock extends TableBlock {
 	/*------------------------------------------------------------------------*/
 	// NAVIGATION
 
-	def containsInEdgeArea(sel: LabelSelection) =
+	def containsInEdgeArea(sel: OneLabel) =
 		(sel.block == this) ||
 		(sel.orientation == this.orientation
 		 && sel.coords.contains(structAxis)
@@ -255,7 +255,7 @@ class StructBlock extends TableBlock {
 
 
 	def moveByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable = sel match {
-		case label: LabelSelection if this containsInEdgeArea label =>
+		case label: OneLabel if this containsInEdgeArea label =>
 			val isTransverse = (label.orientation == o.opposite)
 			if (isPrimaryAxis(label.orientation)){
 				val el = elementFor(sel.coords)
@@ -280,7 +280,7 @@ class StructBlock extends TableBlock {
 
 						else // is longitudianal
 							nextOnAxes(axes(o), sel.coords, d) match {
-								case Some(c) => new LabelSelection(this, o, c)
+								case Some(c) => new OneLabel(this, o, c)
 								case None => NullSelection
 							}
 					}
@@ -293,7 +293,7 @@ class StructBlock extends TableBlock {
 			val el = elements(sel.coords(structAxis))
 			el.moveByOne(sel, o, d) orElse {
 				sel match {
-					case label: LabelSelection if el.containsInEdgeArea(label) =>
+					case label: OneLabel if el.containsInEdgeArea(label) =>
 						assert(label.orientation != this.orientation) // Otherwise, it would be in my edge area.
 
 						val isTransverse = label.orientation == o.opposite
@@ -401,7 +401,7 @@ class StructBlock extends TableBlock {
 	}
 
 
-	def childLabelBounds(offset: Point, lab: LabelSelection): Rectangle = {
+	def childLabelBounds(offset: Point, lab: OneLabel): Rectangle = {
 		val (b0, d0) = this.orientation.breadthDepth(offset)
 		val el = elementFor(lab.coords)
 		val bOffset = starts(orientation)(cellIndexOf(orientation, lab.coords))

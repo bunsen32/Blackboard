@@ -61,7 +61,7 @@ object Test {
 			array = new TestArray(Array()) 
 		}
 		val block = new StructBlock {
-			orientation = YOrientation
+			orientation = Vertical
 			structAxis = axisS
 			xAxes = Nil
 			yAxes = Seq(axisS)
@@ -89,7 +89,7 @@ object Test {
 			array = new TestArray(Array(axisA2, axisA3))
 		}
 		val block = new StructBlock {
-			orientation = XOrientation
+			orientation = Horizontal
 			structAxis = axisS1
 			xAxes = Seq(axisS1, axisA2)
 			yAxes = Seq(axisA3)
@@ -100,7 +100,6 @@ object Test {
 		val block = new ArrayBlock {
 			xAxes = Nil
 			yAxes = Nil
-			array = new FlexibleArrayTable(Nil)
 		}
 
 		val table0 = new Table(block)

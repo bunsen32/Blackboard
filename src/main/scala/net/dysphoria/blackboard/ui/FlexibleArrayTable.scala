@@ -27,7 +27,8 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 			val newK = new Array[Int](newNumberOfDims)
 			Array.copy(oldK, 0, newK, 0, oldNumberOfDims)
 			newK(oldNumberOfDims) = 0
-			newK})
+			newK
+		})
 
 		dim.axisChangedListeners += axisChanged
 	}
@@ -42,6 +43,7 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 
 		remapDimensions(oldK => {
 			if (oldK(dimIndex) != 0)
+				// Delete any values not at position zero on removed dimension.
 				null
 			else {
 				val newK = new Array[Int](newNumberOfDims)
@@ -54,11 +56,29 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 		dim.axisChangedListeners -= axisChanged
 	}
 
-	private val axisChanged = (axis: Axis, index: Int, deleted: Int, added: Int) => {
-		// TODO!
+	// NB! Changes index array in-place (which may cause problems with undo-
+	// stacks later.
+	private val axisChanged = (dim: Axis, index: Int, deleted: Int, added: Int) => {
+		require(index >= 0 && deleted >= 0 && added >= 0)
 		// Remap dimensions to accommodate inserted or deleted values.
+		val dimIndex = (_dimensions indexOf dim)
+		remapDimensions(oldK => {
+			val v = oldK(dimIndex)
+			if (v < index)
+				oldK
+
+			else if (v < (index + deleted))
+				null
+				
+			else {
+				oldK(dimIndex) = v - deleted + added
+				oldK
+			}
+		})
 	}
 
+	// (Reasonably) safe to edit array in-place and return it, given that old data
+	// set is discarded.
 	private def remapDimensions(keyFunc: Array[Int]=>Array[Int]) {
 		var newData = new IntArrayHashTable
 		for((k, v) <- _data)
@@ -66,7 +86,9 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 				case null => // do nothing
 				case newKey => newData(newKey) = v
 			}
+		val oldData = _data
 		_data = newData
+		oldData.clear
 	}
 
 	def apply(coords: Map[Axis,Int]) = _data.getOrElse(flatten(coords), "")

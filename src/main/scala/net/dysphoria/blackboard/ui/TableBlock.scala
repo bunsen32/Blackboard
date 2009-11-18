@@ -48,7 +48,11 @@ abstract class TableBlock {
 	def xLabelHeight(a: Axis, i: Int) = genericCellHeight
 	def yLabelWidth(a: Axis, i: Int) = genericCellWidth
 
-	def axes(o:Orientation) = if (o.isX) xAxes else yAxes
+	object axes {
+		def apply(o:Orientation) = if (o.isX) xAxes else yAxes
+		def update(o:Orientation, as: Seq[Axis]) = if (o.isX) xAxes = as else yAxes = as
+	}
+
 	def innerBreadth(o:Orientation) = if (o.isX) innerSize.x else innerSize.y
 	def innerDepth(o:Orientation) = if (o.isY) innerSize.x else innerSize.y
 	def outerBreadth(o:Orientation) = if (o.isX) outerSize.x else outerSize.y
@@ -89,9 +93,9 @@ abstract class TableBlock {
 		}
 
 		iterateValues(origin.y, yAxes, coords, (y, rowCoords)=>{
-			val h = breadthOfCell(YOrientation, rowCoords)
+			val h = breadthOfCell(Vertical, rowCoords)
 			iterateValues(origin.x, xAxes, rowCoords, (x, cellCoords)=>{
-				val w = breadthOfCell(XOrientation, cellCoords)
+				val w = breadthOfCell(Horizontal, cellCoords)
 				val bounds = new Rectangle(x, y, w, h)
 				renderCell(gfx, bounds, cellCoords)
 				w
@@ -99,8 +103,8 @@ abstract class TableBlock {
 			h
 		})
 
-		drawRules(XOrientation, origin.x, origin.y, innerSize.y, xAxes, coords)
-		drawRules(YOrientation, origin.y, origin.x, innerSize.x, yAxes, coords)
+		drawRules(Horizontal, origin.x, origin.y, innerSize.y, xAxes, coords)
+		drawRules(Vertical, origin.y, origin.x, innerSize.x, yAxes, coords)
 	}
 
 
@@ -144,8 +148,8 @@ abstract class TableBlock {
 	// HIT TESTING
 
 	def hitTestCells(parent: Map[Axis, Int], p: Point): Selectable = {
-		val hitX = hitTestAxis(XOrientation, p.x)
-		val hitY = hitTestAxis(YOrientation, p.y)
+		val hitX = hitTestAxis(Horizontal, p.x)
+		val hitY = hitTestAxis(Vertical, p.y)
 		(hitX, hitY) match {
 			case (Some((cx, remainderX)), Some((cy, remainderY))) =>
 				hitTestCell(parent++cx++cy, new Point(remainderX, remainderY))
@@ -169,7 +173,7 @@ abstract class TableBlock {
 						val soFar = coords + (axis -> i)
 						val thisD = labelDepth(o, axis, i)
 						if (d < thisD)
-							new LabelSelection(this, o, soFar)
+							new OneLabel(this, o, soFar)
 						else
 							searchLabels(soFar,
 										 remain.drop(1),
@@ -203,7 +207,7 @@ abstract class TableBlock {
 	 * Returns true iff this label is in my own label area. (This includes struct’s
 	 * child-blocks’ labels which have been promoted upwards.)
 	 */
-	def containsInEdgeArea(sel: LabelSelection): Boolean
+	def containsInEdgeArea(sel: OneLabel): Boolean
 
 	def selectEdgeLabel(context: Map[Axis,Int], labels: Orientation, plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = {
 		val theAxes = axes(labels)
@@ -213,14 +217,14 @@ abstract class TableBlock {
 			if (labels == plane){ // 'Short' (transverse) edge of label block.
 				if (hintSel.coords.contains(theAxes(0))){
 					val coords = context ++ theAxes.takeWhile(hintSel.coords.contains(_)).map(a => (a, end.of(a)))
-					new LabelSelection(this, labels, coords){
+					new OneLabel(this, labels, coords){
 						override val actualB = 0 //TODO (hintSel.actualB)
 						override val hintCoords = hintSel.coords ++ coords
 					}
 				} else{
 					val a = theAxes(0)
 					val coords = context + ((a, end.of(a)))
-					new LabelSelection(this, labels, coords){
+					new OneLabel(this, labels, coords){
 						override val actualB = 0 /*TODO!*/
 						override val hintCoords = hintSel.coords ++ coords
 					}
@@ -230,20 +234,20 @@ abstract class TableBlock {
 			}else{ // 'Long' (longitudinal) edge of label block
 				val axes = if (end.isFirst) Seq(theAxes.first) else theAxes
 				val coords = context ++ hintCoords(axes, hintSel.hintCoords)
-				new LabelSelection(this, labels, coords){
+				new OneLabel(this, labels, coords){
 					override val actualB = 0/*TODO: actualB*/
 					override val hintCoords = hintSel.coords ++ coords
 				}
 			}
 	}
 
-	protected def moveOwnLabelByOne(sel: LabelSelection, o: Orientation, d: Direction): Selectable = {
+	protected def moveOwnLabelByOne(sel: OneLabel, o: Orientation, d: Direction): Selectable = {
 		require(sel.block == this)
 		val theAxes = axes(sel.orientation)
 		if (o == sel.orientation) { // Moving longitudinally, along axes.
 			val usedAxes = theAxes.takeWhile(sel.coords.contains(_))
 			nextOnAxes(usedAxes, sel.coords, d) match {
-				case Some(c) => new LabelSelection(this, o, c)
+				case Some(c) => new OneLabel(this, o, c)
 				case None => NullSelection
 			}
 			
@@ -259,7 +263,7 @@ abstract class TableBlock {
 					}else
 						sel.coords - (theAxes(i))
 					
-				new LabelSelection(this, sel.orientation, newCoords){
+				new OneLabel(this, sel.orientation, newCoords){
 					override val actualB = sel.actualB
 					override val hintCoords = sel.hintCoords ++ newCoords
 				}
@@ -285,7 +289,7 @@ abstract class TableBlock {
 	def breadthCellBounds(offset: Int, o: Orientation, coords: Map[Axis,Int]): Range
 
 
-	def labelBounds(dataOrigin: Point, lab: LabelSelection): Rectangle = {
+	def labelBounds(dataOrigin: Point, lab: OneLabel): Rectangle = {
 		if (lab.block == this) {
 			val o = lab.orientation
 			val longiRange = breadthOwnLabelBounds(o.breadth(dataOrigin), lab)
@@ -297,9 +301,9 @@ abstract class TableBlock {
 		}
 	}
 
-	def childLabelBounds(dataOrigin: Point, lab: LabelSelection): Rectangle
+	def childLabelBounds(dataOrigin: Point, lab: OneLabel): Rectangle
 
-	def breadthOwnLabelBounds(offset: Int, lab: LabelSelection): Range = {
+	def breadthOwnLabelBounds(offset: Int, lab: OneLabel): Range = {
 		assert(lab.block == this)
 		val o = lab.orientation; val coords = lab.coords
 		val num = cellCountOf(o, coords)
@@ -309,7 +313,7 @@ abstract class TableBlock {
 	def breadthOwnLabelBounds(offset: Int, o: Orientation, coords: Map[Axis,Int], num: Int): Range
 
 
-	def depthOwnLabelBounds(dataOrigin: Int, lab: LabelSelection): Range = {
+	def depthOwnLabelBounds(dataOrigin: Int, lab: OneLabel): Range = {
 		assert(lab.block == this)
 		val o = lab.orientation
 		val coords = lab.coords
@@ -455,11 +459,11 @@ abstract class TableBlock {
 
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, thisCoords: Map[Axis,Int]) {
 		val selected = gfx.ui.selection match {
-			case lab: LabelSelection => (lab.block == this) && (thisCoords == lab.coords)
+			case lab: OneLabel => (lab.block == this) && (thisCoords == lab.coords)
 				
-			case labs: LabelRangeSelection if (labs.block == this) && thisCoords.contains(labs.axis) =>
+			case labs: LabelRange if (labs.block == this) && thisCoords.contains(labs.axis) =>
 				val thisV = thisCoords(labs.axis)
-				lazy val selCoords = labs.coords + ((labs.axis, thisV))
+				lazy val selCoords = labs.allCoordsButLast + ((labs.axis, thisV))
 				(labs.range contains thisV) && (selCoords == thisCoords)
 
 			case _=> false

@@ -48,21 +48,22 @@ abstract class InsertOverlayGlyph(d: Device) extends NodeGlyph(d) {
 		gc.setAdvanced(true)
 		gc.setAntialias(SWT.ON)
 
-		val fgColour = device.getSystemColor(
-			if (alt) SWT.COLOR_WHITE else SWT.COLOR_BLACK)
+		val dark = device.getSystemColor(SWT.COLOR_BLACK)
 
-		val bgColour = device.getSystemColor(if (armed)
-				if (alt) SWT.COLOR_DARK_YELLOW else SWT.COLOR_YELLOW
+		val light = device.getSystemColor(if (armed)
+				SWT.COLOR_YELLOW
 			else if (focused)
-				if (alt) SWT.COLOR_DARK_GRAY else SWT.COLOR_WHITE
+				SWT.COLOR_WHITE
 			else
-				if (alt) SWT.COLOR_BLACK else SWT.COLOR_GRAY)
+				SWT.COLOR_GRAY)
 
-		gc.setBackground(fgColour)
+		val (fg, bg) = if (alt) (light, dark) else (dark, light)
+
+		gc.setBackground(fg)
 		gc.fillRectangle(0, 0, 100, 100)
-		gc.setBackground(bgColour)
+		gc.setBackground(bg)
 		gc.fillOval(origin.x - 8, origin.y - 8, 16, 16)
-		gc.setBackground(fgColour)
+		gc.setBackground(fg)
 		gc.fillRectangle(origin.x - 1, origin.y - 6, 2, 12)
 		gc.fillRectangle(origin.x - 6, origin.y - 1, 12, 2)
 	}

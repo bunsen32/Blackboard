@@ -56,7 +56,7 @@ class SelectionEditingOverlay(val control: ViewCanvas) extends Disposable {
 		var i = 0
 		_usedNodes = Set.empty
 		up = Nil; down = Nil; left = Nil; right = Nil
-		for(s <- nodes){
+		for(s <- nodes.reverse){
 			val n = _nodePool(i)
 			n.setup(s.glyph, s.f)
 			s.position match {

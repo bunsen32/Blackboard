@@ -10,9 +10,7 @@ import org.eclipse.swt.graphics.{Point, Rectangle}
 import gfx._
 import selection._
 
-class Table(val topBlock: TableBlock) extends Displayable {
-	import topBlock._
-
+class Table(var topBlock: TableBlock) extends Displayable {
 	def computeSize {
 		topBlock.computeSize
 	}
@@ -21,30 +19,31 @@ class Table(val topBlock: TableBlock) extends Displayable {
 
 
 	def render(g: DrawingContext, origin: Point) = {
-		val dataOrigin = new Point(origin.x + leftHeader, origin.y + topHeader)
+		val dataOrigin = new Point(origin.x + topBlock.leftHeader,
+								   origin.y + topBlock.topHeader)
 
-		renderCells(g, dataOrigin, Map.empty)
+		topBlock.renderCells(g, dataOrigin, Map.empty)
 		//Headers
-		renderLabels(g, dataOrigin, XOrientation, Map.empty)
-		renderLabels(g, dataOrigin, YOrientation, Map.empty)
+		topBlock.renderLabels(g, dataOrigin, Horizontal, Map.empty)
+		topBlock.renderLabels(g, dataOrigin, Vertical, Map.empty)
 	}
 
 
 	def hitTest(parent: Map[Axis, Int], p: Point): Selectable = {
-		if (p.x >= 0 && p.x < outerSize.x && p.y >= 0 && p.y < outerSize.y) {
-			val x = (p.x - leftHeader)
-			val y = (p.y - topHeader)
+		if (p.x >= 0 && p.x < topBlock.outerSize.x && p.y >= 0 && p.y < topBlock.outerSize.y) {
+			val x = (p.x - topBlock.leftHeader)
+			val y = (p.y - topBlock.topHeader)
 			if (x < 0 && y < 0)
 				NullSelection
 
 			else if (x < 0)
-				hitTestLabels(parent, YOrientation, y, x)
+				topBlock.hitTestLabels(parent, Vertical, y, x)
 
 			else if (y < 0)
-				hitTestLabels(parent, XOrientation, x, y)
+				topBlock.hitTestLabels(parent, Horizontal, x, y)
 
 			else
-				hitTestCells(parent, new Point(x, y))
+				topBlock.hitTestCells(parent, new Point(x, y))
 
 		}else
 			NullSelection
@@ -54,7 +53,7 @@ class Table(val topBlock: TableBlock) extends Displayable {
 	def moveByCell(sel: SingleGridSelection, o: Orientation, d: Direction) = {
 		topBlock.moveByOne(sel, o, d) orElse {
 			sel match {
-				case label: LabelSelection if topBlock containsInEdgeArea label =>
+				case label: OneLabel if topBlock containsInEdgeArea label =>
 					if (o == label.orientation.opposite && d.isForward)
 						topBlock.selectEdgeChild(Map.empty, o, First, sel)
 					else
@@ -71,13 +70,13 @@ class Table(val topBlock: TableBlock) extends Displayable {
 
 
 	def cellBounds(coords: Map[Axis, Int]): Rectangle = {
-		val x = breadthCellBounds(leftHeader, XOrientation, coords)
-		val y = breadthCellBounds(topHeader, YOrientation, coords)
+		val x = topBlock.breadthCellBounds(topBlock.leftHeader, Horizontal, coords)
+		val y = topBlock.breadthCellBounds(topBlock.topHeader, Vertical, coords)
 		return new Rectangle(x.start, y.start, x.length, y.length)
 	}
 
-	def labelBounds(lab: LabelSelection): Rectangle = {
-		topBlock.labelBounds(new Point(leftHeader, topHeader), lab)
+	def labelBounds(lab: OneLabel): Rectangle = {
+		topBlock.labelBounds(new Point(topBlock.leftHeader, topBlock.topHeader), lab)
 	}
 
 

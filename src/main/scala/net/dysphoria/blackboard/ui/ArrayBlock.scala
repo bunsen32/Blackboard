@@ -12,12 +12,12 @@ import gfx._
 import selection._
 
 class ArrayBlock extends TableBlock {
-	var array: FlexibleArrayTable = null
+	var array = new FlexibleArrayTable(Nil)
 	val cellStyle = new CellStyle
 
 	def computeInnerSizeAndHeaders {
-		val width = sizeOf(XOrientation, xAxes)
-		val height = sizeOf(YOrientation, yAxes)
+		val width = sizeOf(Horizontal, xAxes)
+		val height = sizeOf(Vertical, yAxes)
 		innerSize = new Point(width, height)
 		topHeader = (0 /: xAxes)(_ + xLabelHeight(_, 0))
 		leftHeader = (0 /: yAxes)(_ + yLabelWidth(_, 0))
@@ -83,11 +83,11 @@ class ArrayBlock extends TableBlock {
 	/*------------------------------------------------------------------------*/
 	// NAVIGATION
 
-	def containsInEdgeArea(sel: LabelSelection) = (sel.block == this)
+	def containsInEdgeArea(sel: OneLabel) = (sel.block == this)
 
 	
 	def moveByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable = sel match {
-		case lab: LabelSelection if this containsInEdgeArea lab =>
+		case lab: OneLabel if this containsInEdgeArea lab =>
 			moveOwnLabelByOne(lab, o, d)
 
 		case _ =>
@@ -130,7 +130,7 @@ class ArrayBlock extends TableBlock {
 	}
 
 
-	def childLabelBounds(dataOrigin: Point, lab: LabelSelection) =
+	def childLabelBounds(dataOrigin: Point, lab: OneLabel) =
 		error("childLabelBounds: ArrayBlock does not have child elements.")
 
 

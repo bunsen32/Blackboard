@@ -376,12 +376,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	def processKey(e: Event){
 		val shift = (e.stateMask & SWT.SHIFT) != 0
 		e.keyCode match {
-			case SWT.ARROW_UP => moveSelection(YOrientation, Back, ByOne)
-			case SWT.ARROW_DOWN => moveSelection(YOrientation, Forward, ByOne)
-			case SWT.ARROW_LEFT => moveSelection(XOrientation, Back, ByOne)
-			case SWT.ARROW_RIGHT => moveSelection(XOrientation, Forward, ByOne)
-			case SWT.TAB if shift => moveSelection(XOrientation, Back, ByOne)
-			case SWT.TAB if !shift => moveSelection(XOrientation, Forward, ByOne)
+			case SWT.ARROW_UP => moveSelection(Vertical, Back, ByOne)
+			case SWT.ARROW_DOWN => moveSelection(Vertical, Forward, ByOne)
+			case SWT.ARROW_LEFT => moveSelection(Horizontal, Back, ByOne)
+			case SWT.ARROW_RIGHT => moveSelection(Horizontal, Forward, ByOne)
+			case SWT.TAB if shift => moveSelection(Horizontal, Back, ByOne)
+			case SWT.TAB if !shift => moveSelection(Horizontal, Forward, ByOne)
 			case _ => //ignore
 		}
 	}
@@ -395,12 +395,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val atLeft = emptySelection && (selStart == cellEdit.leftPosition)
 		val atRight = emptySelection && (selStart == cellEdit.rightPosition)
 		e.keyCode match {
-			case SWT.ARROW_UP => moveSelection(YOrientation, Back, ByOne); true
-			case SWT.ARROW_DOWN => moveSelection(YOrientation, Forward, ByOne); true
-			case SWT.ARROW_LEFT if atLeft => moveSelection(XOrientation, Back, ByOne); true
-			case SWT.ARROW_RIGHT if atRight => moveSelection(XOrientation, Forward, ByOne); true
-			case SWT.TAB if shift => moveSelection(XOrientation, Back, ByOne); true
-			case SWT.TAB if !shift => moveSelection(XOrientation, Forward, ByOne); true
+			case SWT.ARROW_UP => moveSelection(Vertical, Back, ByOne); true
+			case SWT.ARROW_DOWN => moveSelection(Vertical, Forward, ByOne); true
+			case SWT.ARROW_LEFT if atLeft => moveSelection(Horizontal, Back, ByOne); true
+			case SWT.ARROW_RIGHT if atRight => moveSelection(Horizontal, Forward, ByOne); true
+			case SWT.TAB if shift => moveSelection(Horizontal, Back, ByOne); true
+			case SWT.TAB if !shift => moveSelection(Horizontal, Forward, ByOne); true
 
 			case SWT.ESC => ui.fineEditMode = false; true
 			case _ => false
@@ -420,7 +420,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 					case ByOne => ui.select(navigator.moveByCell(cell, o, incNotDec).orElse(cell))
 					case _ => //ignore
 				}
-			case lab: LabelSelection =>
+			case lab: OneLabel =>
 				granularity match {
 					case ByOne => ui.select(navigator.moveByOne(lab, o, incNotDec).orElse(lab))
 					case _=>

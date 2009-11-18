@@ -126,7 +126,7 @@ class UIState(val control: ViewCanvas) {
 
 	def makeRange(base: Selectable, extension: Selectable): Selectable = {
 		(base, extension) match {
-			case (s0: LabelSelection, s1: LabelSelection) =>
+			case (s0: OneLabel, s1: OneLabel) =>
 				s0 to s1
 /*
 			case (s: HasTableCell, cell: HasTableCell) if cell.block == s.block =>
