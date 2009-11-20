@@ -27,7 +27,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	private val cellEditListener: Listener = handleCellEditEvent _
 	private val interestingEvents = Array(
 		SWT.Resize,
-		SWT.KeyDown, SWT.KeyUp, SWT.HardKeyDown, SWT.FocusOut,
+		SWT.KeyDown, SWT.KeyUp, SWT.FocusOut,
 		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
 		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
 		SWT.Help
@@ -185,9 +185,6 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 					nonModifierKeyPressed = false
 				}
 				if (e.keyCode == SWT.MOD3) ui.selectLargeBits = false
-
-			case SWT.HardKeyDown =>
-				println("keyCode & MASK = " + (e.keyCode & SWT.MODIFIER_MASK))
 
 			case SWT.FocusOut =>
 				// TODO: get rid of any overlays
