@@ -150,6 +150,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 						val newAxis = new StructAxis(labs.range.length)
 						val newBlock = new StructBlock(newAxis)
+						newBlock.orientation = labs.orientation
 						newBlock.elements ++= oldBlock.elements.slice(startIx, endIx)
 						assert(newBlock.elements.length == newAxis.length)
 
