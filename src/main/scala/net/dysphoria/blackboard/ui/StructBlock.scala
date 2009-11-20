@@ -135,7 +135,7 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 	def hitTestChildLabels(parent: Map[Axis,Int], o: Orientation, b: Int, d: Int) = {
 		if (isPrimaryAxis(o)){
 			val el = elements(parent(structAxis))
-			el.hitTestLabels(parent, o, b + el.firstHeader(o), d)
+			el.hitTestLabels(parent, o, b - el.firstHeader(o), d)
 
 		}else
 			NullSelection
