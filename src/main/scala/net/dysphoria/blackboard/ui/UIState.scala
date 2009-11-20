@@ -68,8 +68,11 @@ class UIState(val control: ViewCanvas) {
 		selection match {
 			case CellSelection(coords) =>
 				val array = control.table.arrayTable(coords)
-				control.cellEdit.beginEdit(array, coords)
-				
+				control.cellEdit.beginEdit(new CellEditor(array, coords))
+
+			case label: OneLabel =>
+				control.cellEdit.beginEdit(new LabelEditor(label))
+
 			case _ => control.cellEdit.endEdit
 		}
 	}

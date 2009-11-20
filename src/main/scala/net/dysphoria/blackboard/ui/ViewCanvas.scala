@@ -43,7 +43,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	}*/
 	val ui = new UIState(this)
 	val policy = new EditingStatePolicy(this)
-	val cellEdit = new CellEditor(this)
+	val cellEdit = new GridTextEditor(this)
 	
 	var mouseX = -1
 	var mouseY = 0
