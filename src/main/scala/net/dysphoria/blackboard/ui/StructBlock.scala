@@ -289,8 +289,8 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 				moveOwnLabelByOne(label, o, d)
 			}
 
-		case _ =>
-			val el = elements(sel.coords(structAxis))
+		case _ => // Is NOT a label in my edge area (so either a data cell, or a label which is not in my edge area)
+			val el = elementFor(sel.coords)
 			el.moveByOne(sel, o, d) orElse {
 				sel match {
 					case label: OneLabel if el.containsInEdgeArea(label) =>
@@ -316,9 +316,10 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 							}
 
 					case _ => // Child cell, (NOT immediate child's label area).
-						if (o == this.orientation) // across child labels
+						if (o == this.orientation) { // across child labels
+							val parentCoords = sel.coords -- el.axes(o)
 							if (d.isForward)
-								nextOnAxes(axes(o), sel.coords, d) match {
+								nextOnAxes(axes(o), parentCoords, d) match {
 									case Some(c) =>
 										val el = elementFor(c)
 										el.selectEdgeLabel(c, o.opposite, o, First, sel) orElse {
@@ -328,8 +329,8 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 									case None => NullSelection
 								}
 							else
-								el.selectEdgeLabel(sel.coords, o.opposite, o, Last, sel) orElse {
-									nextOnAxes(axes(o), sel.coords, d) match {
+								el.selectEdgeLabel(parentCoords, o.opposite, o, Last, sel) orElse {
+									nextOnAxes(axes(o), parentCoords, d) match {
 										case Some(c) =>
 											val el = elementFor(c)
 											el.selectEdgeChild(c, o, Last, sel)
@@ -337,7 +338,7 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 										case None => NullSelection
 									}
 								}
-						else
+						} else
 							nextOnAxes(axes(o), sel.coords, d) match {
 								case Some(c) =>
 									val el = elementFor(c)

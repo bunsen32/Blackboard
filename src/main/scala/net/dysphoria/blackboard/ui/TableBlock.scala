@@ -204,7 +204,7 @@ abstract class TableBlock {
 	def moveByOne(sel: SingleGridSelection, o: Orientation, d: Direction): Selectable
 
 	/**
-	 * Returns true iff this label is in my own label area. (This includes struct’s
+	 * Returns true iff this label is in my own label area. (This includes a struct’s
 	 * child-blocks’ labels which have been promoted upwards.)
 	 */
 	def containsInEdgeArea(sel: OneLabel): Boolean
