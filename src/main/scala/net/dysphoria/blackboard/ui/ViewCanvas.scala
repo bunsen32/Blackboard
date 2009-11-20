@@ -122,8 +122,10 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 				val item = selectableThingAt(point)
 				if (item != ui.selection)
 					ui.select(item)
-				else
-					ui.fineEditMode = true
+
+				else if (item.isInstanceOf[SingleGridSelection])
+					beginCellEdit(None)
+					
 				/*if (state.isExtendSelect)
 					ui.extendSelectionTo(hitThing)
 
@@ -372,6 +374,8 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 	def processKey(e: Event){
 		val shift = (e.stateMask & SWT.SHIFT) != 0
+		val potentialCellEdit = !ui.fineEditMode &&
+								ui.selection.isInstanceOf[SingleGridSelection]
 		e.keyCode match {
 			case SWT.ARROW_UP => moveSelection(Vertical, Back, ByOne)
 			case SWT.ARROW_DOWN => moveSelection(Vertical, Forward, ByOne)
@@ -379,7 +383,20 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			case SWT.ARROW_RIGHT => moveSelection(Horizontal, Forward, ByOne)
 			case SWT.TAB if shift => moveSelection(Horizontal, Back, ByOne)
 			case SWT.TAB if !shift => moveSelection(Horizontal, Forward, ByOne)
+			case SWT.DEL | SWT.BS if potentialCellEdit => beginCellEdit(Some(""))
+			case _ if potentialCellEdit && !e.character.isControl => beginCellEdit(Some(e.character.toString))
+			case SWT.CR | SWT.KEYPAD_CR if potentialCellEdit => beginCellEdit(None)
 			case _ => //ignore
+		}
+	}
+
+	def beginCellEdit(s: Option[String]) {
+		require(ui.selection.isInstanceOf[SingleGridSelection])
+		ui.fineEditMode = true
+		for(str <- s) {
+			cellEdit.input.setText(str)
+			val p = str.length
+			cellEdit.input.setSelection(p, p)
 		}
 	}
 
@@ -400,6 +417,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			case SWT.TAB if !shift => moveSelection(Horizontal, Forward, ByOne); true
 
 			case SWT.ESC => ui.fineEditMode = false; true
+			case SWT.CR | SWT.KEYPAD_CR => ui.fineEditMode = false; true
 			case _ => false
 		}
 	}

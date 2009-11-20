@@ -14,7 +14,7 @@ class GridTextEditor(canvas: ViewCanvas) {
 	var source: GridEditSource = null
 
 	var _visible = false
-	val input = new Text(canvas, SWT.BORDER)
+	val input = new Text(canvas, SWT.BORDER | SWT.CENTER)
 	input.setVisible(false)
 
 	def addListener(evt: Int, listener: Listener) =
