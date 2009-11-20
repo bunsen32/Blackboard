@@ -79,8 +79,8 @@ class SelectionEditingOverlay(val control: ViewCanvas) extends Disposable {
 
 	def reposition {
 		if (reallyVisible) {
-			val topLeft = control.toDisplay(control.modelToView(_rect.x, _rect.y))
-			val bottomRight = control.toDisplay(control.modelToView(_rect.x + _rect.width, _rect.y + _rect.height))
+			val topLeft = control.modelToView(_rect.x, _rect.y)
+			val bottomRight = control.modelToView(_rect.x + _rect.width, _rect.y + _rect.height)
 			def layOut(nodes: Seq[OverlayNode], x0: Int, y0: Int, dx: Int, dy: Int){
 				var x = x0; var y = y0
 				for(n <- nodes){

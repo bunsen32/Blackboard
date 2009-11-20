@@ -11,8 +11,8 @@ import org.eclipse.swt.graphics._
 import org.eclipse.swt.widgets._
 import Listeners._
 
-class OverlayNode(parent: Control) {
-	val shell = new Shell(parent.getShell, SWT.MODELESS | SWT.NO_TRIM | SWT.TOOL | SWT.ON_TOP)
+class OverlayNode(parent: Composite) {
+	val shell = new Canvas(parent, SWT.NONE)
 
 	val listener: Listener = handleEvent _
 	Seq(
@@ -92,7 +92,7 @@ class OverlayNode(parent: Control) {
 			case SWT.Activate =>
 				// We don't want this window to itself ever be 'active'. It's just
 				// a wee overlay control.
-				parent.getShell.setActive
+				//parent.getShell.setActive
 				
 			case _ => // Ignore anything else.
 		}

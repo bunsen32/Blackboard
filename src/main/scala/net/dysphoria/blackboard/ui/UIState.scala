@@ -79,10 +79,12 @@ class UIState(val control: ViewCanvas) {
 
 	def selection = currentSelection
 	def selection_=(s: Selectable) {
-		currentSelection = s
-		control.redraw
-		if (fineEditMode) updateFineEditMode
-		onChange
+		if (currentSelection != s) {
+			currentSelection = s
+			control.redraw
+			if (fineEditMode) updateFineEditMode
+			onChange
+		}
 	}
 
 	def selectLargeBits = _selectLargeBits
