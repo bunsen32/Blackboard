@@ -26,6 +26,7 @@ case class OneLabel(block: TableBlock, orientation: Orientation, coords: Map[Axi
 	lazy val allCoordsButLast = coords - axis
 	def index = coords(axis)
 
+	
 	def to(other: OneLabel): Selectable = {
 		if (this.block == other.block &&
 			this.orientation == other.orientation &&
@@ -49,7 +50,7 @@ case class OneLabel(block: TableBlock, orientation: Orientation, coords: Map[Axi
 				(this.coords.get(ax), other.coords.get(ax)) match {
 					case (Some(thisV), Some(otherV)) =>
 						assert(thisV != otherV)
-						val r = if (thisV < otherV) thisV to otherV else otherV to thisV
+						val r = if (thisV < otherV) thisV until otherV+1 else otherV until thisV+1
 						LabelRange(block, orientation, parentCoords ++ commonCoords, ax, r)
 
 					case _ =>

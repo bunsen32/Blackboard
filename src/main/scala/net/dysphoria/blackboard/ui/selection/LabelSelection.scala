@@ -12,4 +12,5 @@ abstract class LabelSelection extends Selectable {
 	def parentCoords: Map[Axis,Int]
 	def allCoordsButLast: Map[Axis,Int]
 	def axis: Axis
+	def axisIndex: Int
 }

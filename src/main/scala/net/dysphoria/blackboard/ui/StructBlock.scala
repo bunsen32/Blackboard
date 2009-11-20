@@ -258,9 +258,9 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 		case label: OneLabel if this containsInEdgeArea label =>
 			val isTransverse = (label.orientation == o.opposite)
 			if (isPrimaryAxis(label.orientation)){
-				val el = elementFor(sel.coords)
+				lazy val el = elementFor(sel.coords)
 				
-				if (!(el containsInEdgeArea label)) // It’s one of our own axes’ labels:
+				if (label.block == this) // It’s one of our own axes’ labels:
 					moveOwnLabelByOne(label, o, d) orElse {
 						// If moving from our axes to child axes:
 						if (isTransverse && d.isForward)
@@ -270,16 +270,16 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 					}
 					
 				else // It's one of our 'combined' child labels:
-					moveOwnLabelByOne(label, o, d) orElse {
+					el.moveByOne(label, o, d) orElse {
 						// If moving from child axes to our axes:
 						if (isTransverse)
 							if (d.isBack)
-								super.selectEdgeLabel(sel.coords, label.orientation, o, Last, sel)
+								super.selectEdgeLabel(label.parentCoords, label.orientation, o, Last, sel)
 							else
 								NullSelection // Move off label area
 
 						else // is longitudianal
-							nextOnAxes(axes(o), sel.coords, d) match {
+							nextOnAxes(axes(o), label.parentCoords, d) match {
 								case Some(c) => new OneLabel(this, o, c)
 								case None => NullSelection
 							}

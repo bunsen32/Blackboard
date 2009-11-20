@@ -64,8 +64,9 @@ class OverlayNode(parent: Control) {
 			case SWT.MouseDown =>
 				armed = true
 				shell.redraw
+
 			case SWT.MouseUp =>
-				if (armed) action.apply
+				if (armed) performAction
 				focused = armed
 				armed = false
 				shell.redraw
@@ -87,6 +88,7 @@ class OverlayNode(parent: Control) {
 					focused = true
 					shell.redraw
 				}
+
 			case SWT.Activate =>
 				// We don't want this window to itself ever be 'active'. It's just
 				// a wee overlay control.
@@ -95,6 +97,12 @@ class OverlayNode(parent: Control) {
 			case _ => // Ignore anything else.
 		}
 	}
+
+	def performAction = try {
+			action.apply
+		}catch{
+			case _:InapplicableActionException => //ignore
+		}
 
 	def onDispose(e: Event) {
 		// Nothing to do.
