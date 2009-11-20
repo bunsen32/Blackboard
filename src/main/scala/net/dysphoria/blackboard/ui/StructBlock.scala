@@ -404,20 +404,22 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 	def childLabelBounds(offset: Point, lab: OneLabel): Rectangle = {
 		val (b0, d0) = this.orientation.breadthDepth(offset)
 		val el = elementFor(lab.coords)
-		val bOffset = starts(orientation)(cellIndexOf(orientation, lab.coords))
-		val childOffset = if (this containsInEdgeArea lab){
+		val bOffset = el.firstHeader(orientation) +
+					starts(orientation)(cellIndexOf(orientation, lab.coords))
+					
+		val dOffset =
+			if (this containsInEdgeArea lab) {
 				assert(this.orientation == lab.orientation)
-				orientation.newPoint(
-					b0 + bOffset,
-					d0)
+				0
 
-			}else{
-				val perpendicular = orientation.opposite
-				val dOffset = starts(perpendicular)(cellIndexOf(perpendicular, lab.coords))
-				orientation.newPoint(
-					b0 + bOffset + el.firstHeader(orientation),
-					d0 + dOffset)
+			} else {
+				val orthogonal = orientation.opposite
+				starts(orthogonal)(cellIndexOf(orthogonal, lab.coords))
 			}
+
+		val childOffset = orientation.newPoint(
+					b0 + bOffset,
+					d0 + dOffset)
 		el.labelBounds(childOffset, lab)
 	}
 
