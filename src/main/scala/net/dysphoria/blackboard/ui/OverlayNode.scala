@@ -101,7 +101,7 @@ class OverlayNode(parent: Composite) {
 	def performAction = try {
 			action.apply
 		}catch{
-			case _:InapplicableActionException => //ignore
+			case _:InapplicableActionException => parent.getDisplay.beep
 		}
 
 	def onDispose(e: Event) {

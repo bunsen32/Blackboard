@@ -17,7 +17,7 @@ import blackboard.gfx._
 import ui.Listeners._
 import ui.selection._
 
-abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(parent, SWT.H_SCROLL|SWT.V_SCROLL) {
+abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(parent, SWT.H_SCROLL|SWT.V_SCROLL|SWT.DOUBLE_BUFFERED) {
 	private val Origin = new Point(0, 0)
 	val white = new RGB(255, 255, 255)
 	val black = new RGB(0, 0, 0)
@@ -425,8 +425,11 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	def moveSelection(o: Orientation, d: Direction, granularity: MovementGranularity){
 		ui.selection match {
 			case sel: SingleGridSelection =>
-				ui.select(table.moveByCell(sel, o, d) orElse sel)
-			case _ =>
+				table.moveByCell(sel, o, d) match {
+					case NullSelection => getDisplay.beep
+					case newSel => ui.select(newSel)
+				}
+			case _ => // ignore
 		}
 		/*
 		ui.selection match {
@@ -452,7 +455,9 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
     override def computeSize(wHint: Int, hHint: Int, changed: Boolean) = {
 		try{
 			val clientSize = table.size
-			val idealSize = computeTrim(0, 0, clientSize.x, clientSize.y)
+			val preferredX = Math.max(clientSize.x, 300)
+			val preferredY = Math.max(clientSize.y, 200)
+			val idealSize = computeTrim(0, 0, preferredX, preferredY)
 			new Point(
 				(if (wHint != SWT.DEFAULT) wHint else idealSize.width),
 				(if (hHint != SWT.DEFAULT) hHint else idealSize.height))
