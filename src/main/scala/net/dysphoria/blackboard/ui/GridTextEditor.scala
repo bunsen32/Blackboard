@@ -23,7 +23,10 @@ class GridTextEditor(canvas: ViewCanvas) {
 	def beginEdit(newSource: GridEditSource){
 		if (visible) { save; endEdit }
 		source = newSource
-		input.setText(source.read)
+		val text = source.read
+		input.setText(text)
+		// Select all the text. Mac does this by default, but Win doesn’t
+		input.setSelection(0, text.length)
 		visible = true
 		input.setFocus
 	}
