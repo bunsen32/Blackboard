@@ -225,19 +225,22 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			case b if b == lab.block =>
 				val (o, orthogonal) = (lab.orientation, lab.orientation.opposite)
 				val (promotedAxes, existingAxes) = splitAt(b.axes(lab.orientation), lab.axisIndex)
+				val (promotedOrthAxes, existingOrthAxes) = topLevelArrayAxes(b.axes(orthogonal))
 				
 				assert(b match {case s: StructBlock => s.orientation != o || existingAxes.contains(s.structAxis); case _ => true})
 				b.axes(o) = existingAxes
+				b.axes(orthogonal) = existingOrthAxes
 
 				val newChild = new ArrayBlock
 				for(ax <- promotedAxes) onlyArrayAxis(ax, newChild.array.addDimension(_))
+				for(ax <- promotedOrthAxes) onlyArrayAxis(ax, newChild.array.addDimension(_))
 				for(ax <- lab.parentCoords.keys) onlyArrayAxis(ax, newChild.array.addDimension(_))
 
 				val newAxis = new StructAxis(2)
 				val newTop = new StructBlock(newAxis)
 				newTop.orientation = o
 				newTop.axes(o) = promotedAxes ++ Some(newAxis)
-				newTop.axes(orthogonal) = Nil
+				newTop.axes(orthogonal) = promotedOrthAxes
 				newTop.elements ++= Seq(b, newChild)
 
 				newTop
