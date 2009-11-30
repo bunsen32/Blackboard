@@ -17,7 +17,7 @@ import org.eclipse.swt.graphics._
  */
 class CellStyle {
 	var fontFamily: String = "Helvetica"
-	var fontSize: Float = 12F
+	var fontSize: Float = 12F*256F
 	var fontStyle: Int = SWT.NORMAL // SWT style flags
 	var backgroundColor: RGB = new RGB(255, 255, 255)
 	var color: RGB = new RGB(0, 0, 0) // American spelling: consistancy with CSS

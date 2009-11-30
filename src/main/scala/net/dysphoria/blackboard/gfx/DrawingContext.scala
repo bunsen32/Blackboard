@@ -15,6 +15,10 @@ class DrawingContext(val gc: GC, val ui: UIState) {
 
 	private val resourceMap = new mutable.HashMap[Any, Resource]
 	private val resources = mutable.Set.empty[Resource]
+	
+	// If coordinates aren’t aligned with screen pixels, how much do I have to add to a coordinate to
+	// cover the next pixel?
+	protected val pixelDistance = 1
 
 	def colorForRGB(col: RGB) =
 		resourceMap.getOrElseUpdate(col, register(new Color(gc.getDevice, col))).asInstanceOf[Color]
@@ -41,16 +45,29 @@ class DrawingContext(val gc: GC, val ui: UIState) {
 		resources clear
 	}
 
+	private var currentClipRect: Rectangle = null
 	def withclip(rect: Rectangle)(op: => Unit) {
-		val oldClip = gc.getClipping()
+		val oldRect = if (currentClipRect == null) gc.getClipping else currentClipRect
+		currentClipRect = (rect intersection oldRect)
+		gc.setClipping(currentClipRect)
 		try {
-			gc.setClipping(rect intersection oldClip)
 			op
 
 		}finally{
-			gc.setClipping(oldClip)
+			gc.setClipping(oldRect)
 		}
 	}
+
+	def roundDown(c: Int) = c - pixelDistance
+	def roundUp(c: Int) = c + pixelDistance
+
+	def setLine(l: LineDescriptor){
+		gc setLineAttributes l.lineAttributes
+		gc setForeground colorForRGB(l.colour)
+	}
+
+
+
 	/* Tried a region-based solution, but it a) failed to deal with problems
 	 * I was having, re: innaccuracy when clipping within a tranformed gc, and
 	 * b) appeared to be much slower.

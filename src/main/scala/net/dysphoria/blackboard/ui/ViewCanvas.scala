@@ -47,16 +47,21 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	
 	var mouseX = -1
 	var mouseY = 0
-	var scale = 1.0F
+
+	final val pixelFactor = 256
+	final val unitScale = 1F / pixelFactor
+	final val minScale = 0.2F * unitScale
+	final val maxScale = 5F * unitScale
+	var scale = unitScale
 
 	var idealOffsetX = 0F
 	var idealOffsetY = 0F
-	var offsetX = 0F
-	var offsetY = 0F
-	var minX = 0F
-	var minY = 0F
-	var maxX = 0F
-	var maxY = 0F
+	var offsetX = 0
+	var offsetY = 0
+	var minX = 0
+	var minY = 0
+	var maxX = 0
+	var maxY = 0
 
 	val hiddenCursor = {
 		// create a cursor with a transparent image
@@ -98,12 +103,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			// Events which fire regardless of widget:
 			case SWT.MouseWheel => if (state.isAltBehaviour) {
 				val oldScale = scale
-				val newScale = (0.2F max power(oldScale, 1.05F, e.count) min 5.0F)
+				val newScale = quantiseScale(minScale max power(oldScale, 1.05F, e.count) min maxScale)
 				if (oldScale != newScale) {
 					// 1:1 scale is special. If the zoom 'crosses' 1:1, snap
 					// to exactly 1:1
-					scale = if ((oldScale < 1F && newScale >1F) || (oldScale > 1F && newScale < 1F))
-							1F
+					scale = if ((oldScale < unitScale && newScale > unitScale) || (oldScale > unitScale && newScale < unitScale))
+							unitScale
 						else
 							newScale
 					val newScaledPoint = viewToModel(new Point(e.x, e.y))
@@ -197,16 +202,19 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 	private def scrollHorizontal(e: Event){
 		val unscaled = getHorizontalBar.getSelection
-		val x = (unscaled / 256F) + minX
+		val x = (unscaled / 256F) / scale + minX
 		if (x != offsetX)
 			setOrigin(x, offsetY)
 	}
 	private def scrollVertical(e: Event){
 		val unscaled = getVerticalBar.getSelection
-		val y = (unscaled / 256F) + minY
+		val y = (unscaled / 256F) / scale + minY
 		if (y != offsetY)
 			setOrigin(offsetX, y)
 	}
+
+	// Returns 'unquantised' rounded to the nearest 1/256th... Unnecessary? Remove?
+	private def quantiseScale(unquantised: Float) = unquantised
 
 	private def power(result: Float, d: Float, e: Int): Float =
 		if (e == 0)
@@ -234,33 +242,37 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	 */
 	def computeBounds {
 		val clientArea = getClientArea
-		val canvasWidth = (clientArea.width / scale)
-		val canvasHeight = (clientArea.height / scale)
+		val canvasWidth = clientArea.width
+		val canvasHeight = clientArea.height
 		val model = table.size
+		val modelWidth = Math.ceil(model.x * scale).toInt
+		val modelHeight = Math.ceil(model.y * scale).toInt
 
-		if (model.x > canvasWidth){
+		val dw = model.x - (canvasWidth / scale).toInt
+		if (modelWidth > canvasWidth){
 			minX = 0
-			maxX = model.x - canvasWidth
+			maxX = dw
 		}else{
-			minX = (model.x - canvasWidth) / 2
+			minX = dw / 2
 			maxX = minX
 		}
 
-		if (model.y > canvasHeight){
+		val dh = model.y - (canvasHeight / scale).toInt
+		if (modelHeight > canvasHeight){
 			minY = 0
-			maxY = model.y - canvasHeight
+			maxY = dh
 		}else{
-			minY = (model.y - canvasHeight) / 2
+			minY = dh / 2
 			maxY = minY
 		}
 
 		updateOrigin(true)
 		val xScroll = getHorizontalBar
 		val xPage = (canvasWidth * 256).toInt
-		val xSize = ((canvasWidth max model.x) * 256).toInt
+		val xSize = ((canvasWidth max modelWidth) * 256).toInt
 		val xSmall = 20*256
 		xScroll.setValues(
-			((offsetX - minX) * 256F).toInt, // selection
+			((offsetX - minX) * scale * 256F).toInt, // selection
 			0, // minimum
 			xSize, // maximum
 			xPage, // thumb
@@ -269,10 +281,10 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 		val yScroll = getVerticalBar
 		val yPage = (canvasHeight * 256).toInt
-		val ySize = ((canvasHeight max model.y) * 256).toInt
+		val ySize = ((canvasHeight max modelHeight) * 256).toInt
 		val ySmall = 20*256
 		yScroll.setValues(
-			((offsetY - minY) * 256F).toInt, // selection
+			((offsetY - minY) * scale * 256F).toInt, // selection
 			0, // minimum
 			ySize, // maximum
 			yPage, // thumb
@@ -304,8 +316,8 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			for(l <- geometryChangedListeners)
 				l.apply(this)
 
-		val x = minX.toFloat max idealOffsetX min maxX
-		val y = minY.toFloat max idealOffsetY min maxY
+		val x = minX max idealOffsetX.round.toInt min maxX
+		val y = minY max idealOffsetY.round.toInt min maxY
 		if (x != offsetX || y != offsetY) {
 			offsetX = x; offsetY = y
 			redraw
@@ -330,12 +342,23 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			(r.width * scale).toInt,
 			(r.height * scale).toInt)
 
+	def withClipRoundRightAndDown(d: DrawingContext, rect: Rectangle)(op: => Unit) {
+		val rightPixel = Math.ceil(((rect.x + rect.width) - offsetX) * scale)
+		val bottomPixel = Math.ceil(((rect.y + rect.height) - offsetY) * scale)
+		val rightRounded = Math.ceil(rightPixel / scale + offsetX).toInt
+		val bottomRounded = Math.ceil(bottomPixel / scale + offsetY).toInt
+		d.withclip(new Rectangle(rect.x, rect.y, rightRounded - rect.x, bottomRounded - rect.y))(op)
+	}
+
+
 	
     def paintControl(e: PaintEvent) {
 		val gc = e.gc
 		gc.setAdvanced(true)
 		gc.setAntialias(SWT.ON)
-		val gfx = new DrawingContext(gc, ui)
+		val gfx = new DrawingContext(gc, ui) {
+			override val pixelDistance = (1 / scale).ceil.toInt
+		}
 		try{
 			val canvasArea = getClientArea
 			val gridSize = table.size
@@ -355,7 +378,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 				trans.identity
 				gc.setTransform(trans)
 				for(d <- ui.dropTarget)
-					d.render(gfx, new Point(0, 0))
+					d.render(gfx, Origin)
 			}
 			if (mouseX != -1){
 				gc.setForeground(gfx.colorForRGB(red))
@@ -455,8 +478,8 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
     override def computeSize(wHint: Int, hHint: Int, changed: Boolean) = {
 		try{
 			val clientSize = table.size
-			val preferredX = Math.max(clientSize.x, 300)
-			val preferredY = Math.max(clientSize.y, 200)
+			val preferredX = Math.max((clientSize.x * scale).toInt, 300)
+			val preferredY = Math.max((clientSize.y * scale).toInt, 200)
 			val idealSize = computeTrim(0, 0, preferredX, preferredY)
 			new Point(
 				(if (wHint != SWT.DEFAULT) wHint else idealSize.width),

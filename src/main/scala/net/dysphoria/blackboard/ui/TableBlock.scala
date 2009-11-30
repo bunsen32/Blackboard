@@ -13,8 +13,8 @@ import blackboard.gfx._
 import ui.selection._
 
 abstract class TableBlock {
-	val genericCellHeight = 19 // Need to get rid of these at some point.
-	val genericCellWidth = 50 // Will be replaced by the CSS styles.
+	val genericCellHeight = 19*256 // Need to get rid of these at some point.
+	val genericCellWidth = 50*256 // Will be replaced by the CSS styles.
 
 	var xAxes: Seq[Axis] = Nil
 	var yAxes: Seq[Axis] = Nil
@@ -83,9 +83,7 @@ abstract class TableBlock {
 			iterateAxis(b0, axes, coords, (b0, axis, i, remainingAxes)=>{
 				val updatedCoords = coords.update(axis, i)
 				val breadth = drawRules(o, b0, d0, depth, remainingAxes, updatedCoords)
-				if (i != 0)
-					o.choose(drawSeparator(gfx, axis, b0, d0, 0, depth),
-							 drawSeparator(gfx, axis, d0, b0, depth, 0))
+				if (i != 0) drawSeparator(gfx, axis, o.opposite, d0, b0, depth)
 				breadth
 			},{
 				breadthOfCell(o, coords)
@@ -124,9 +122,8 @@ abstract class TableBlock {
 					val r = o.choose(new Rectangle(b0, d1, breadth, depth),
 									 new Rectangle(d1, b0, depth, breadth))
 					renderHeaderLabel(gfx, r, axis, i, updatedCoords)
-					if (i != 0)
-						o.choose(drawSeparator(gfx, axis, b0, d1, 0, availableDepth),
-								 drawSeparator(gfx, axis, d1, b0, availableDepth, 0))
+					if (i != 0) drawSeparator(gfx, axis, o.opposite, d1, b0, availableDepth)
+						
 					breadth
 				}, {
 					renderChildLabels(gfx, o, b0, d0, availableDepth, coords)
@@ -477,8 +474,8 @@ abstract class TableBlock {
 		import g.gc
 		val bg = if (selected) g.gc.getDevice().getSystemColor(SWT.COLOR_YELLOW)
 						  else g.colorForRGB(style.backgroundColor)
+		val alignedRect = roundBottomRight(g, bounds)
 		gc.setBackground(bg)
-		gc.fillRectangle(bounds)
 		gc.setForeground(g.colorForRGB(style.color))
 		gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
 		val fm = gc.getFontMetrics
@@ -500,22 +497,41 @@ abstract class TableBlock {
 			
 		// Only set clipping if we need to:
 		if (x < 0 || y < 0 || x+w >= bounds.width || y + h >= bounds.height)
-			g.withclip(bounds){
+			// Clip to exactly top-left and slightly beyond bottom-right:
+			g.withclip(alignedRect){
+				// Because we have clipped to exact top-left coordinate, fill to beyond
+				// top-left to ensure that we don't leave a gap.
+				gc.fillRectangle(roundTopLeft(g, alignedRect))
 				gc.drawString(value, bounds.x+x, bounds.y+y, true)
 			}
-		else
+		else {
+			// Fill from exactly top-left and slightly beyond bottom-right:
+			gc.fillRectangle(alignedRect)
 			gc.drawString(value, bounds.x+x, bounds.y+y, true)
-	}
-
-	
-	def drawSeparator(gfx: DrawingContext, d: Axis, x0: Int, y0: Int, dx: Int, dy: Int){
-		d.interItemLine match {
-			case None => ;// No line
-			case Some(l) => {
-					l.setAttributesOf(gfx)
-					gfx.gc.drawLine(x0, y0, x0+dx, y0+dy)
-			}
 		}
 	}
 
+	private def roundBottomRight(g: DrawingContext, r: Rectangle) =
+		new Rectangle(r.x, r.y, g.roundUp(r.width), g.roundUp(r.height))
+
+	private def roundTopLeft(g: DrawingContext, rect: Rectangle) = {
+		val b = rect.y + rect.height
+		val r = rect.x + rect.width
+		val t = g.roundDown(rect.y)
+		val l = g.roundDown(rect.x)
+		new Rectangle(l, t, (r - l), (b - t))
+	}
+	
+	def drawSeparator(gfx: DrawingContext, d: Axis, o: Orientation, b0: Int, d0: Int, length: Int){
+		d.interItemLine match {
+			case None => ;// No line
+			case Some(l) => {
+				gfx.setLine(l)
+				val off = (l.thickness / 2).toInt
+				val dEdge = d0 - off // Centre the line on pixel boundary.
+				o.choose(gfx.gc.drawLine(b0, dEdge, b0 + length, dEdge),
+						 gfx.gc.drawLine(dEdge, b0, dEdge, b0 + length))
+			}
+		}
+	}
 }
