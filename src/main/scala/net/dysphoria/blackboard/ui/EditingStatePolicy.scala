@@ -117,7 +117,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						// Repeat the single struct item
 						val b = lab.block.asInstanceOf[StructBlock]
 						val el = b.elementFor(lab.coords)
-						val newAxis = new ArrayAxis(2)
+						val newAxis = new ArrayAxis(2){interItemLine = thinLine}
 						el.axes(lab.orientation) = Seq(newAxis) ++ el.axes(lab.orientation)
 						forAllArraysInBlock(el, _.addDimension(newAxis))
 						updateDisplay
@@ -129,7 +129,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						// If user has selected whole range of axis.
 						val block = labs.block
 						val existingAxes = block.axes(labs.orientation)
-						val newAxis = new ArrayAxis(2)
+						val newAxis = new ArrayAxis(2){interItemLine = thickerThan(ax.interItemLine)}
 						block.axes(labs.orientation) = existingAxes.take(labs.axisIndex) ++ Some(newAxis) ++ existingAxes.drop(labs.axisIndex)
 						forAllArraysInBlock(block, _.addDimension(newAxis))
 
@@ -148,7 +148,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						val oldBlock = labs.block.asInstanceOf[StructBlock]
 						val (startIx, endIx) = (labs.range.start, labs.range.last + 1)
 
-						val newAxis = new StructAxis(labs.range.length)
+						val newAxis = new StructAxis(labs.range.length){interItemLine = thinnerThan(thinnerThan(oldAxis.interItemLine))}
 						val newBlock = new StructBlock(newAxis)
 						newBlock.orientation = labs.orientation
 						newBlock.elements ++= oldBlock.elements.slice(startIx, endIx)
@@ -162,7 +162,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						oldAxis.insert(startIx)
 						assert(oldBlock.elements.length == oldAxis.length)
 
-						val newDim = new ArrayAxis(2)
+						val newDim = new ArrayAxis(2){interItemLine = thinnerThan(oldAxis.interItemLine)}
 						forAllArraysInBlock(newBlock, _.addDimension(newDim))
 						newBlock.axes(labs.orientation) = Seq(newDim, newAxis)
 
@@ -236,7 +236,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				for(ax <- promotedOrthAxes) onlyArrayAxis(ax, newChild.array.addDimension(_))
 				for(ax <- lab.parentCoords.keys) onlyArrayAxis(ax, newChild.array.addDimension(_))
 
-				val newAxis = new StructAxis(2)
+				val newAxis = new StructAxis(2){interItemLine = thickerThan(arrayAxis.interItemLine)}
 				val newTop = new StructBlock(newAxis)
 				newTop.orientation = o
 				newTop.axes(o) = promotedAxes ++ Some(newAxis)
@@ -253,7 +253,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	def cellInsertSimilarAfter(o: Orientation) {
 		validActionIf(topBlock.axes(o).length == 0)
 
-		val newAxis = new ArrayAxis(1)
+		val newAxis = new ArrayAxis(1){interItemLine = thinLine}
 		newAxis.insert(1) // A new column
 		topBlock.axes(o) = List(newAxis)
 		forAllArraysInBlock(topBlock, a => a.addDimension(newAxis))
@@ -271,7 +271,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		newChild.axes(orthogonal) = existingOrthAxes
 		for(ax <- promotedArrayAxes) newChild.array.addDimension(ax)
 
-		val newAxis = new StructAxis(2)
+		val newAxis = new StructAxis(2){interItemLine = thinLine}
 		val newTop = new StructBlock(newAxis)
 		newTop.elements ++= Seq(topBlock, newChild)
 		newTop.orientation = o
@@ -319,8 +319,8 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	private def validActionIf(p: Boolean) =
 		if (!p) throw new InapplicableActionException
 
-	// TODO: This should not be required; changes to model should automatically
-	// update the view.
+	// TODO: Eventually this should not be required; changes to model should
+	// automatically update the view.
 	private def updateDisplay {
 		control.table.computeSize
 		control.computeBounds
@@ -340,5 +340,18 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		insertUpDiff.dispose
 		insertLeftDiff.dispose
 		insertDownDiff.dispose
+	}
+
+	import gfx.LineDescriptor
+	import org.eclipse.swt.graphics.RGB
+
+	val thinLine = Some(new LineDescriptor(new RGB(0, 0, 100), 25))
+	def thickerThan(l: Option[LineDescriptor]) = l match {
+		case None => thinLine
+		case Some(line) => Some(new LineDescriptor(line.colour, line.thickness * 2F))
+	}
+	def thinnerThan(l: Option[LineDescriptor]) = l match {
+		case None => thinLine
+		case Some(line) => Some(new LineDescriptor(line.colour, line.thickness * 0.75F))
 	}
 }
