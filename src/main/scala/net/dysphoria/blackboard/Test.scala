@@ -3,8 +3,8 @@ package net.dysphoria.blackboard
 import org.eclipse.swt
 import swt.layout
 import swt.graphics
-import swt.widgets
-import swt.SWT._
+import swt.widgets._
+import swt.SWT
 import swt.events._
 
 import blackboard.gfx._
@@ -15,15 +15,15 @@ import Listeners._
  * Says “hello” to the world.
  */
 object Test {
-	var display: widgets.Display = _
+	var display: Display = _
 	
 	def setUpApp {
-		widgets.Display setAppName "Blackboard"
-		display = new widgets.Display()
+		Display setAppName "Blackboard"
+		display = new Display()
 	}
 
-	def testWindow: widgets.Shell = {
-		val shell = new widgets.Shell(display)
+	def testWindow: Shell = {
+		val shell = new Shell(display)
 		shell.setText("Blackboard")
 		val shellLayout = new layout.FillLayout()
 		shellLayout.marginWidth = 0
@@ -102,11 +102,18 @@ object Test {
 			yAxes = Nil
 		}
 
-		val table0 = new Table(block)
+		val table0 = new ui.Table(block)
 		table0.computeSize
-		val view = new ui.ViewCanvas(shell, NONE) {
+		val view = new ui.ViewCanvas(shell, SWT.NONE) {
 			val table = table0
 		}
+
+		val menu = new Menu(shell, SWT.BAR)
+		shell setMenuBar menu
+		val fileMenuItem = new MenuItem(menu, SWT.CASCADE)
+		fileMenuItem setText "File"
+		val editMenuItem = new MenuItem(menu, SWT.CASCADE)
+		editMenuItem setText "Edit"
 
 		shell.pack
 		shell.open
