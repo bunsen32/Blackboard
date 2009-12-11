@@ -40,6 +40,7 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 		val newDimensions = new Array[ArrayAxis](newNumberOfDims)
 		for(i <- 0 until newNumberOfDims if i != dimIndex)
 			newDimensions(if (i < dimIndex) i else i - 1) = _dimensions(i)
+		_dimensions = newDimensions
 
 		remapDimensions(oldK => {
 			if (oldK(dimIndex) != 0)

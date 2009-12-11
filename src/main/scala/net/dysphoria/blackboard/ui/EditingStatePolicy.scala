@@ -71,16 +71,15 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	control.ui.stateChangedListeners += (_ => updateState)
 
 	def updateState {
-		def labelCtrls(o: Orientation, deleteWholeAxis: Boolean, num: Int) = {
+		def labelCtrls(o: Orientation, deleteLabel: Boolean, deleteAxis: Boolean, num: Int) = {
 			(num match {
 				case 0 => Nil
 				case 1 => o.choose(labelColArrayCtrls, labelRowArrayCtrls)
 				case 2 => o.choose(labelColCtrls, labelRowCtrls)
 			}) ++ (
-				if (deleteWholeAxis)
-					o.choose(deleteColAxisCtrls, deleteRowAxisCtrls)
-				else
-					o.choose(deleteColLabelCtrls, deleteRowLabelCtrls)
+				if (deleteAxis) o.choose(deleteColAxisCtrls, deleteRowAxisCtrls) else Nil
+			) ++ (
+				if (deleteLabel) o.choose(deleteColLabelCtrls, deleteRowLabelCtrls) else Nil
 			)
 		}
 
@@ -100,8 +99,9 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			case lab: OneLabel =>
 				val rect = control.table.labelBounds(lab)
 				val axis = lab.axis
-				val deleteAxis = (axis.length == axis.minimumLength)
-				_selectionEditingOverlay.set(rect, labelCtrls(lab.orientation, deleteAxis, axis match {
+				val deleteAxis = axis.length <= 1
+				val deleteLabel = (axis.length - 1 >= axis.minimumLength)
+				_selectionEditingOverlay.set(rect, labelCtrls(lab.orientation, deleteLabel, deleteAxis, axis match {
 					case s: StructAxis => 2
 					case a: ArrayAxis if lab.index >= a.last => 2
 					case _ => 1
@@ -110,8 +110,9 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			case labs: LabelRange =>
 				val rect = labelRangeRect(control.table, labs)
 				val axis = labs.axis
-				val deleteAxis = (axis.length - labs.range.length) < axis.minimumLength
-				_selectionEditingOverlay.set(rect, labelCtrls(labs.orientation, deleteAxis, axis match {
+				val deleteAxis = axis.length <= labs.range.length
+				val deleteLabel = (axis.length - labs.range.length) >= axis.minimumLength
+				_selectionEditingOverlay.set(rect, labelCtrls(labs.orientation, deleteLabel, deleteAxis, axis match {
 					case s: StructAxis => 2
 					case a: ArrayAxis if eq(labs.range, a.range) => 2
 					case a: ArrayAxis => 0
@@ -163,7 +164,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 					case a: ArrayAxis =>
 						// The following will evaluate false and fail:
 						assert(!eq(a.range, labs.range))
-						validActionNot
+						notValidAction
 
 					case oldAxis: StructAxis =>
 						// If user selects a range of struct items, and chooses to
@@ -193,7 +194,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						control.ui.selection = NullSelection
 						updateDisplay
 				}
-			case _ => validActionNot
+			case _ => notValidAction
 		}
 	}
 
@@ -207,7 +208,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		control.ui.selection match {
 			case lab: OneLabel => insertDifferentAfterSingleLabel(lab)
 			case labs: LabelRange => insertDifferentAfterSingleLabel(labs.last)
-			case _ => validActionNot
+			case _ => notValidAction
 		}
 	}
 
@@ -310,26 +311,68 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 	
 	def labelDeleteData {
-		def delete(axis: Axis, i: Int, count: Int) {
+		def delete(block: TableBlock, axis: Axis, i: Int, count: Int) {
 			validActionIf((axis.length - count) >= axis.minimumLength)
-			axis match {
-				case a: ArrayAxis => a.delete(i, count)
-				case _ => validActionNot
+			(axis, block) match {
+				case (a: ArrayAxis, _) => a.delete(i, count)
+				case (s: StructAxis, sb: StructBlock) =>
+					s.delete(i, count)
+					for(_ <- 1 to count) sb.elements.remove(i)
 			}
 			control.ui.selection = NullSelection
 			updateDisplay
 		}
 
 		control.ui.selection match {
-			case lab: OneLabel => delete(lab.axis, lab.index, 1)
-			case labs: LabelRange => delete(labs.axis, labs.range.start, labs.range.length)
-			case _ => validActionNot
+			case lab: OneLabel => delete(lab.block, lab.axis, lab.index, 1)
+			case labs: LabelRange => delete(labs.block, labs.axis, labs.range.start, labs.range.length)
+			case _ => notValidAction
 		}
 	}
 
 	def labelDeleteAxis {
-		println("delete whole axis")
+		control.ui.selection match {
+			case sel: LabelSelection =>
+				val block = sel.block
+				val o = sel.orientation
+				sel.axis match {
+					case a: ArrayAxis =>
+						forAllArraysInBlock(block, _.removeDimension(a))
+						block.axes(o) = block.axes(o).filter(_ != a)
+						
+					case s: StructAxis =>
+						control.table.topBlock = coalesceStruct(control.table.topBlock, sel)
+				}
+				control.ui.selection = NullSelection
+				updateDisplay
+
+			case _ => notValidAction
+		}
 	}
+
+	def coalesceStruct(block: TableBlock, sel: LabelSelection): TableBlock = {
+		block match {
+			case s: StructBlock if s != sel.block =>
+				val i = sel.parentCoords(s.structAxis)
+				s.elements(i) = coalesceStruct(s.elements(i), sel)
+				s
+
+			case s: StructBlock if s == sel.block =>
+				val child = s.elements(0)
+				def joinAxes(o: Orientation) {
+					child.axes(o) = s.axes(o).filter(_ != sel.axis) ++
+									child.axes(o)
+				}
+				joinAxes(Horizontal)
+				joinAxes(Vertical)
+				// Should need to do nothing more to dispose of ‘s’. Potentially in the
+				// future we need to initiate some kind of clean-up.
+				child
+
+			case _ => error("‘block’ must be sel.block or one of its ancestors.")
+		}
+	}
+
 
 	/*------------------------------------------------------------------------*/
 	// GENERAL UTILITY
@@ -367,9 +410,9 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 
 	private def validActionIf(p: Boolean) =
-		if (!p) validActionNot
+		if (!p) notValidAction
 
-	private def validActionNot = throw new InapplicableActionException
+	private def notValidAction = throw new InapplicableActionException
 
 	// TODO: Eventually this should not be required; changes to model should
 	// automatically update the view.
