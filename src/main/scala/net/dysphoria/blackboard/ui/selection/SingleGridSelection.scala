@@ -12,4 +12,11 @@ package net.dysphoria.blackboard.ui.selection
 trait SingleGridSelection extends Selectable {
 	val coords: Map[Axis, Int]
 	def hintCoords = coords
+	
+	/**
+	 * Whether any index is beyond the range of its axis. An index should only
+	 * ever be 1 eyond the end of the axis (to allow representation of the space
+	 * at the end of the axis).
+	 */
+	def withinData: Boolean
 }

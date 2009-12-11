@@ -414,12 +414,38 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	}
 
 	def beginCellEdit(s: Option[String]) {
-		require(ui.selection.isInstanceOf[SingleGridSelection])
-		ui.fineEditMode = true
-		for(str <- s) {
-			cellEdit.input.setText(str)
-			val p = str.length
-			cellEdit.input.setSelection(p, p)
+		ui.selection match {
+			case sel: SingleGridSelection =>
+				autoVivifySelection(sel)
+				ui.fineEditMode = true
+				for(str <- s) {
+					cellEdit.input.setText(str)
+					val p = str.length
+					cellEdit.input.setSelection(p, p)
+				}
+			case _ => error("Selection not a single cell.")
+		}
+	}
+
+	/**
+	 * If selection is off end of data, expand the axes to fit.
+	 */
+	def autoVivifySelection(sel: SingleGridSelection) {
+		if (!sel.withinData){
+			sel match {
+				case lab: OneLabel =>
+					val (ax, ix) = (lab.axis, lab.index)
+					assert(ix == ax.length)
+					ax.insert(ix, 1)
+
+				case cel: CellSelection =>
+					for((ax, ix) <- sel.coords) {
+						assert(ix >= 0 && ix <= ax.length)
+						if (ix == ax.length)
+							ax.insert(ix, 1)
+					}
+			}
+			assert(sel.withinData)
 		}
 	}
 

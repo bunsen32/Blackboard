@@ -14,6 +14,11 @@ import selection._
 class ArrayBlock extends TableBlock {
 	var array = new FlexibleArrayTable(Nil)
 	val cellStyle = new CellStyle
+	val voidCellStyle = new CellStyle {
+		backgroundColor = new RGB(200, 200, 230)
+	}
+
+	def showEmptyAxes = true
 
 	def computeInnerSizeAndHeaders {
 		val width = sizeOf(Horizontal, xAxes)
@@ -29,7 +34,7 @@ class ArrayBlock extends TableBlock {
 			axes(0) match {
 				case a: ArrayAxis =>
 					val breadth = sizeOf(orientation, remainingAxes)
-					breadth * a.length // unit breadth × size of dimension
+					breadth * visibleLength(a) // unit breadth × size of dimension
 
 				case _ => error("ArrayBlock contains non-Array Axis!")
 			}
@@ -43,12 +48,17 @@ class ArrayBlock extends TableBlock {
 		if (labelOrientation.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
 
 	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int]){
+		val withinData = !indices.exists(pair => pair._2 >= pair._1.length)
 		val selected = gfx.ui.selection match {
 			case CellSelection(coords) => coordinatesMatch(indices, coords)
 			case _=> false
 		}
-		renderBasicCell(gfx, cellStyle, bounds,
-						array(indices).toString, selected)
+		if (withinData){
+			renderBasicCell(gfx, cellStyle, bounds,
+							array(indices).toString, selected)
+		}else{
+			renderBasicCell(gfx, voidCellStyle, bounds, "", selected)
+		}
 	}
 
 	
@@ -64,7 +74,7 @@ class ArrayBlock extends TableBlock {
 		var available = innerBreadth(o)
 		var coords: Map[Axis, Int] = Map.empty
 		for(ax <- axes(o)) {
-			val perValue = available / ax.length
+			val perValue = available / visibleLength(ax)
 			val v = remainder / perValue
 			coords += ((ax, v))
 			remainder %= perValue

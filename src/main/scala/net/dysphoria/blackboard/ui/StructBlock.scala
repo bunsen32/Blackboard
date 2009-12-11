@@ -30,8 +30,8 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 		maxElementDepth = (0 /: elements)((depth, el) => 
 				Math.max(depth, el.innerDepth(orientation))
 			)
-		endsX = new Array[Int]((1 /: xAxes)(_ * _.length))
-		endsY = new Array[Int]((1 /: yAxes)(_ * _.length))
+		endsX = new Array[Int]((1 /: xAxes)(_ * visibleLength(_)))
+		endsY = new Array[Int]((1 /: yAxes)(_ * visibleLength(_)))
 
 		topHeader = headerDepth(Horizontal, xAxes, None)
 		leftHeader = headerDepth(Vertical, yAxes, None)
@@ -58,7 +58,7 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 			axes.first match {
 				case a: ArrayAxis =>
 					val header = headerDepth(o, remainingAxes, element)
-					val maxLabelDepth = (0 /: a.range)((max, i)=>
+					val maxLabelDepth = (0 /: visibleRange(a))((max, i)=>
 						Math.max(max, preferredLabelDepth(o, a, i)))
 					header + maxLabelDepth
 
@@ -66,15 +66,15 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 					assert(isPrimaryAxis(o), "StructAxes only allowed on primary dimension (by definition).")
 					assert(s == structAxis, "Must be the correct instance of StructAxis")
 					assert(element.isEmpty, "Must not have already found a StructAxis")
-					val labelChildDepths = new Array[Int](s.length)
-					val maxDepth = (0 /: s.range)((maxHead, i) => {
+					val labelChildDepths = new Array[Int](visibleLength(s))
+					val maxDepth = (0 /: visibleRange(s))((maxHead, i) => {
 						val structLabelDepth = preferredLabelDepth(o, s, i)
 						val elHead = headerDepth(o, remainingAxes, Some(elements(i)))
 						labelChildDepths(i) = elHead
 						Math.max(maxHead, elHead + structLabelDepth)
 					})
 					labelDepths = labelChildDepths // Ugly hack to avoid allocation. (Modifies array in-place.)
-					for (i <- s.range)
+					for (i <- visibleRange(s))
 						labelDepths(i) = maxDepth - labelChildDepths(i)
 
 					maxDepth
@@ -153,7 +153,7 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 			var n = n0
 			var i = i0
 			for(ax <- axes(o)) {
-				val width = n / ax.length
+				val width = n / visibleLength(ax)
 				coords += ((ax, i / width))
 				i %= width
 				n = width
@@ -352,7 +352,7 @@ class StructBlock(val structAxis: StructAxis) extends TableBlock {
 
 
 	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = {
-		val myFirst = context ++ (axes(plane) map (ax => (ax, end.of(ax))))
+		val myFirst = context ++ (axes(plane) map (endPair(_, end)))
 		val myOrth = Map.empty ++ hintCoords(axes(plane.opposite), hintSel.coords)
 		val myContext = myFirst ++ myOrth
 		val planeParallelToStruct = (plane == this.orientation)

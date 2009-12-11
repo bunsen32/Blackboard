@@ -26,6 +26,7 @@ case class OneLabel(block: TableBlock, orientation: Orientation, coords: Map[Axi
 	lazy val allCoordsButLast = coords - axis
 	def index = coords(axis)
 
+	def withinData = axis.range contains index
 	
 	def to(other: OneLabel): Selectable = {
 		if (this.block == other.block &&

@@ -13,20 +13,23 @@ import scala.collection.mutable
  * The 'type' of a structure.
  */
 class StructAxis(initialLength: Int) extends Axis {
-	//class Element(var name: String)
-
 	val elements = new mutable.ArrayBuffer[String]()
 	def label(i: Int) = elements(i)
 	def length = elements.length
 
-	for(i <- 0 until initialLength) internalInsert(i)
+	require(initialLength >= minimumLength)
+	internalInsert(0, initialLength)
 
-	def internalInsert(index: Int) {
-		elements.insert(index, "label" + (length + 1))
+	def internalInsert(index: Int, count: Int) {
+		for(n <- 0 until count)
+			elements.insert(index + n, "label" + (length + 1))
 	}
 
-	def internalDelete(index: Int) {
-		assert(length >= 1)
-		elements.remove(index)
+	def internalDelete(index: Int, count: Int) {
+		assert(length >= count)
+		for(n <- 0 until count)
+			elements.remove(index)
 	}
+
+	def minimumLength = 1
 }

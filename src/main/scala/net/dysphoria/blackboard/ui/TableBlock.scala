@@ -34,6 +34,14 @@ abstract class TableBlock {
 		textAlign = TextAlignCenter
 		fontStyle = SWT.BOLD
 	}
+	private val voidLabelStyle = new CellStyle {
+		marginLeft = 2
+		marginRight= 2
+		backgroundColor = new RGB(110, 110, 160)
+		color = new RGB(0, 0, 0)
+		textAlign = TextAlignCenter
+		fontStyle = SWT.BOLD | SWT.ITALIC
+	}
 
 	def labelStyle(axis: Axis, index: Int) = defaultLabelStyle
 
@@ -80,7 +88,7 @@ abstract class TableBlock {
 	def renderCells(gfx: DrawingContext, origin: Point, coords: Map[Axis, Int]) {
 
 		def drawRules(o:Orientation, b0: Int, d0: Int, depth: Int, axes: Seq[Axis], coords: Map[Axis, Int]): Int = {
-			iterateAxis(b0, axes, coords, (b0, axis, i, remainingAxes)=>{
+			iterateAxis(b0, axes, (b0, axis, i, remainingAxes)=>{
 				val updatedCoords = coords.update(axis, i)
 				val breadth = drawRules(o, b0, d0, depth, remainingAxes, updatedCoords)
 				if (i != 0) drawSeparator(gfx, axis, o.opposite, d0, b0, depth)
@@ -114,14 +122,13 @@ abstract class TableBlock {
 		def renderOwnLabels(b0: Int, d0: Int, availableDepth: Int,
 						 axes: Seq[Axis], coords: Map[Axis, Int]): Int = {
 
-			iterateAxis(b0, axes, coords, (b0, axis, i, remainingAxes)=>{
+			iterateAxis(b0, axes, (b0, axis, i, remainingAxes)=>{
 					val updatedCoords = coords.update(axis, i)
 					val depth = labelDepth(o, axis, i)
 					val breadth = renderOwnLabels(b0, d0, availableDepth - depth, remainingAxes, updatedCoords)
 					var d1 = d0 - availableDepth
-					val r = o.choose(new Rectangle(b0, d1, breadth, depth),
-									 new Rectangle(d1, b0, depth, breadth))
-					renderHeaderLabel(gfx, r, axis, i, updatedCoords)
+					val lBounds = o.newRectangle(b0, d1, breadth, depth)
+					renderHeaderLabel(gfx, lBounds, axis, i, updatedCoords)
 					if (i != 0) drawSeparator(gfx, axis, o.opposite, d1, b0, availableDepth)
 						
 					breadth
@@ -213,14 +220,14 @@ abstract class TableBlock {
 		else
 			if (labels == plane){ // 'Short' (transverse) edge of label block.
 				if (hintSel.coords.contains(theAxes(0))){
-					val coords = context ++ theAxes.takeWhile(hintSel.coords.contains(_)).map(a => (a, end.of(a)))
+					val coords = context ++ theAxes.takeWhile(hintSel.coords.contains(_)).map(endPair(_, end))
 					new OneLabel(this, labels, coords){
 						override val actualB = 0 //TODO (hintSel.actualB)
 						override val hintCoords = hintSel.coords ++ coords
 					}
 				} else{
 					val a = theAxes(0)
-					val coords = context + ((a, end.of(a)))
+					val coords = context + (endPair(a, end))
 					new OneLabel(this, labels, coords){
 						override val actualB = 0 /*TODO!*/
 						override val hintCoords = hintSel.coords ++ coords
@@ -327,7 +334,7 @@ abstract class TableBlock {
 	def iterateValues(origin: Int, axes: Seq[Axis], coords: Map[Axis, Int],
 					perValue: (Int, Map[Axis,Int])=>Int): Int = {
 
-		iterateAxis(origin, axes, coords, (b0, axis, i, remainingAxes)=>{
+		iterateAxis(origin, axes, (b0, axis, i, remainingAxes)=>{
 				val updatedCoords = coords.update(axis, i)
 				iterateValues(b0, remainingAxes, updatedCoords, perValue)
 			}, {
@@ -336,7 +343,7 @@ abstract class TableBlock {
 	}
 
 
-	def iterateAxis(origin: Int, axes: Seq[Axis], coords: Map[Axis, Int],
+	def iterateAxis(origin: Int, axes: Seq[Axis], 
 				    perLabel: (Int, Axis, Int, Seq[Axis])=>Int,
 					bottom: =>Int): Int = {
 
@@ -344,7 +351,7 @@ abstract class TableBlock {
 			val axis = axes(0)
 			val remainingAxes = axes.drop(1)
 			var offset = 0
-			for(i <- axis.range){
+			for(i <- visibleRange(axis)){
 				val d = perLabel(origin + offset, axis, i, remainingAxes)
 				offset += d
 			}
@@ -364,13 +371,12 @@ abstract class TableBlock {
 			else {
 				val axis = axes.first
 				val p = start(axis)
-				val max = axis.length
 				val newP = p + delta
 				if (newP < 0)
 					// Before start of axis. Wrap around and move onto next axis:
 					next(axes.drop(1), old + (axis -> axis.last))
 
-				else if (newP < axis.length)
+				else if (newP < visibleLength(axis))
 					// Within range. Accept new value:
 					Some(old + (axis -> newP))
 
@@ -391,10 +397,10 @@ abstract class TableBlock {
 
 	def axesEnd(o:Orientation, anEnd: End): Map[Axis, Int] = (
 		Map.empty
-		++ (this.axes(o).map(a => (a -> anEnd.of(a))))
+		++ (this.axes(o).map(endPair(_, anEnd)))
 		++ (this match {
 				case s: StructBlock if s.orientation == o =>
-					s.elements(anEnd.of(s.structAxis)).axesEnd(o, anEnd)
+					s.elements(endOf(s.structAxis, anEnd)).axesEnd(o, anEnd)
 				case _ => Nil
 			}))
 
@@ -413,14 +419,19 @@ abstract class TableBlock {
 		for (ax <- axes(o)) {
 			hasFurtherCoords &&= coords.contains(ax)
 			val c = if (hasFurtherCoords) coords(ax) else 0
-			i = i * ax.length + c
+			i = i * visibleLength(ax) + c
 		}
 		i
 	}
 
+
+	/**
+	 * Returns the number of cells contained within the specified (label) coordinates.
+	 * Inludes 'blank' cell for empty axes.
+	 */
 	def cellCountOf(o: Orientation, coords: Map[Axis, Int]): Int = {
 		val axesWithValues = axes(o).dropWhile(coords.contains(_))
-		(1 /: axesWithValues)((product, ax) => product * ax.length)
+		(1 /: axesWithValues)((product, ax) => product * visibleLength(ax))
 	}
 
 	def arrayTable(coords: Map[Axis,Int]): ArrayTable
@@ -449,12 +460,27 @@ abstract class TableBlock {
 		new Range(i0, i1, 1)
 	}
 
+	def endPair(ax: Axis, end: End) = (ax, endOf(ax, end))
+
+	def endOf(ax: Axis, end: End) = if (end.isFirst) 0 else visibleLength(ax) - 1
+
+	def visibleRange(ax: Axis) = ax match {
+		case a: ArrayAxis if a.length == 0 => 0 until 1
+		case _ => ax.range
+	}
+
+	def visibleLength(ax: Axis) = ax match {
+		case a: ArrayAxis => a.length max 1
+		case _ => ax.length
+	}
+
 	
 	/*------------------------------------------------------------------------*/
 	// GFX UTILITY METHODS
 
 
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, thisCoords: Map[Axis,Int]) {
+		val withinData = ax.range.contains(index)
 		val selected = gfx.ui.selection match {
 			case lab: OneLabel => (lab.block == this) && (thisCoords == lab.coords)
 				
@@ -465,8 +491,12 @@ abstract class TableBlock {
 
 			case _=> false
 		}
-		renderBasicCell(gfx, labelStyle(ax, index), bounds,
-						ax.label(index), selected)
+		if (withinData)
+			renderBasicCell(gfx, labelStyle(ax, index), bounds,
+							ax.label(index), selected)
+		else
+			renderBasicCell(gfx, voidLabelStyle, bounds,
+							"(none)", selected)
 	}
 
 

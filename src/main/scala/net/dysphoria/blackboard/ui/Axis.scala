@@ -19,19 +19,27 @@ abstract class Axis {
 
 	var interItemLine: Option[LineDescriptor] = None
 
-	def insert(index: Int) {
+	def insert(index: Int, count: Int) {
+		require(count > 0)
 		require(index >= 0 && index <= length)
-		internalInsert(index)
-		notifyAxisChangedListeners(index, 0, 1)
+		internalInsert(index, count)
+		notifyAxisChangedListeners(index, 0, count)
 	}
-	def delete(index: Int) {
-		require(index >= 0 && index < length)
-		internalDelete(index)
-		notifyAxisChangedListeners(index, 1, 0)
+	def delete(index: Int, count: Int) {
+		require(count > 0)
+		require(index >= 0 && index <= (length - count))
+		require(length - count >= minimumLength, "Class invariant violated")
+		internalDelete(index, count)
+		notifyAxisChangedListeners(index, count, 0)
 	}
 
-	protected def internalInsert(index: Int)
-	protected def internalDelete(index: Int)
+	protected def internalInsert(index: Int, count: Int)
+	protected def internalDelete(index: Int, count: Int)
+
+	/**
+	 * Class invariant: length >= minimumLength
+	 */
+	def minimumLength: Int
 
 	type AxisChangedListener = Function4[Axis,Int,Int,Int,Unit]
 	val axisChangedListeners = new mutable.HashSet[AxisChangedListener]

@@ -6,7 +6,7 @@
 
 package net.dysphoria.blackboard.ui
 
-import ui.selection._
+import selection._
 
 /**
  * This class is responsible for deciding what operations are available in different
@@ -25,6 +25,8 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	val insertUpDiff = new InsertOverlayGlyph(device){val rotation = 90; val alt = true}
 	val insertLeftDiff = new InsertOverlayGlyph(device){val rotation = 180; val alt = true}
 	val insertDownDiff = new InsertOverlayGlyph(device){val rotation = 270; val alt = true}
+
+	val deleteGlyph = new DeleteOverlayGlyph(device)
 
 	val singleCellCtrls = Seq(
 		EditingNodeSpec(Right, insertRightSame, ()=>cellInsertSimilarAfter(Horizontal)),
@@ -54,9 +56,34 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	val labelRowArrayCtrls = Seq(
 		EditingNodeSpec(Down, insertDownSame, labelInsertSimilarAfter _))
 
+	val deleteColAxisCtrls = Seq(
+		EditingNodeSpec(Left, deleteGlyph, labelDeleteAxis _))
+
+	val deleteRowAxisCtrls = Seq(
+		EditingNodeSpec(Up, deleteGlyph, labelDeleteAxis _))
+
+	val deleteColLabelCtrls = Seq(
+		EditingNodeSpec(Up, deleteGlyph, labelDeleteData _))
+
+	val deleteRowLabelCtrls = Seq(
+		EditingNodeSpec(Left, deleteGlyph, labelDeleteData _))
+
 	control.ui.stateChangedListeners += (_ => updateState)
 
 	def updateState {
+		def labelCtrls(o: Orientation, deleteWholeAxis: Boolean, num: Int) = {
+			(num match {
+				case 0 => Nil
+				case 1 => o.choose(labelColArrayCtrls, labelRowArrayCtrls)
+				case 2 => o.choose(labelColCtrls, labelRowCtrls)
+			}) ++ (
+				if (deleteWholeAxis)
+					o.choose(deleteColAxisCtrls, deleteRowAxisCtrls)
+				else
+					o.choose(deleteColLabelCtrls, deleteRowLabelCtrls)
+			)
+		}
+
 		val noXAxes = (topBlock.xAxes.length == 0)
 		val noYAxes = (topBlock.yAxes.length == 0)
 		control.ui.selection match {
@@ -72,30 +99,24 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 			case lab: OneLabel =>
 				val rect = control.table.labelBounds(lab)
-				val ctrls = lab.axis match {
+				val axis = lab.axis
+				val deleteAxis = (axis.length == axis.minimumLength)
+				_selectionEditingOverlay.set(rect, labelCtrls(lab.orientation, deleteAxis, axis match {
 					case s: StructAxis => 2
-					case a: ArrayAxis if lab.index == a.last => 2
+					case a: ArrayAxis if lab.index >= a.last => 2
 					case _ => 1
-				}
-				_selectionEditingOverlay.set(rect, ctrls match {
-					case 0 => Nil
-					case 1 => lab.orientation.choose(labelColArrayCtrls, labelRowArrayCtrls)
-					case 2 => lab.orientation.choose(labelColCtrls, labelRowCtrls)
-				})
+				}))
 
 			case labs: LabelRange =>
 				val rect = labelRangeRect(control.table, labs)
-				val ctrls = labs.axis match {
+				val axis = labs.axis
+				val deleteAxis = (axis.length - labs.range.length) < axis.minimumLength
+				_selectionEditingOverlay.set(rect, labelCtrls(labs.orientation, deleteAxis, axis match {
 					case s: StructAxis => 2
 					case a: ArrayAxis if eq(labs.range, a.range) => 2
 					case a: ArrayAxis => 0
 					case _ => 0
-				}
-				_selectionEditingOverlay.set(rect, ctrls match {
-					case 0 => Nil
-					case 1 => labs.orientation.choose(labelColArrayCtrls, labelRowArrayCtrls)
-					case 2 => labs.orientation.choose(labelColCtrls, labelRowCtrls)
-				})
+				}))
 
 			case _ =>
 				// clear context buttons / selection-related operations
@@ -104,13 +125,16 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		
 	}
 
+	/*------------------------------------------------------------------------*/
+	// ACTIONS
 
 	def labelInsertSimilarAfter {
 		control.ui.selection match {
 			case lab: OneLabel =>
 				lab.axis match {
 					case a: ArrayAxis =>
-						a.insert(lab.index + 1)
+						val i = if (lab.index >= lab.axis.length) lab.index else lab.index + 1
+						a.insert(i, 1)
 						updateDisplay
 
 					case s: StructAxis =>
@@ -139,7 +163,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 					case a: ArrayAxis =>
 						// The following will evaluate false and fail:
 						assert(!eq(a.range, labs.range))
-						validActionIf(false)
+						validActionNot
 
 					case oldAxis: StructAxis =>
 						// If user selects a range of struct items, and chooses to
@@ -156,10 +180,10 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 						for(_ <- labs.range) {
 							oldBlock.elements.remove(startIx)
-							oldAxis.delete(startIx)
+							oldAxis.delete(startIx, 1)
 						}
 						oldBlock.elements.insert(startIx, newBlock)
-						oldAxis.insert(startIx)
+						oldAxis.insert(startIx, 1)
 						assert(oldBlock.elements.length == oldAxis.length)
 
 						val newDim = new ArrayAxis(2){interItemLine = thinnerThan(oldAxis.interItemLine)}
@@ -169,7 +193,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						control.ui.selection = NullSelection
 						updateDisplay
 				}
-			case _ => //ignore
+			case _ => validActionNot
 		}
 	}
 
@@ -183,14 +207,14 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		control.ui.selection match {
 			case lab: OneLabel => insertDifferentAfterSingleLabel(lab)
 			case labs: LabelRange => insertDifferentAfterSingleLabel(labs.last)
-			case _ => //ignore
+			case _ => validActionNot
 		}
 	}
 
 	def insertDifferentAfterSingleLabel(lab: OneLabel) {
 		(lab.axis, lab.block) match {
 			case (s: StructAxis, b: StructBlock) =>
-				s.insert(lab.index + 1)
+				s.insert(lab.index + 1, 1)
 				val arr = new ArrayBlock
 				for((ax: ArrayAxis, _) <- lab.parentCoords) arr.array.addDimension(ax)
 				for(a <- lab.block.xAxes) onlyArrayAxis(a, arr.array.addDimension(_))
@@ -204,9 +228,9 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				// Currently a struct axes is always the ‘lowest’ (latest) axis
 				// on a StructBlock’s primary orientation... so adding a struct axis
 				// above an array axis implies adding it above any existing other
-				// struct axis. If we want to handle case where adding new struct
+				// struct axis. [If we want to handle case where adding new struct
 				// axis below existing one, need a) to determine correct semantics
-				// and b) implement it!
+				// and b) implement it!]
 				validActionIf(structAxisIndex == -1 || structAxisIndex > lab.axisIndex)
 				control.table.topBlock = splitAfterArray(control.table.topBlock, lab, a)
 				
@@ -254,7 +278,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		validActionIf(topBlock.axes(o).length == 0)
 
 		val newAxis = new ArrayAxis(1){interItemLine = thinLine}
-		newAxis.insert(1) // A new column
+		newAxis.insert(1, 1) // A new column
 		topBlock.axes(o) = List(newAxis)
 		forAllArraysInBlock(topBlock, a => a.addDimension(newAxis))
 		updateDisplay
@@ -283,6 +307,32 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		control.ui.selection = NullSelection
 		updateDisplay
 	}
+
+	
+	def labelDeleteData {
+		def delete(axis: Axis, i: Int, count: Int) {
+			validActionIf((axis.length - count) >= axis.minimumLength)
+			axis match {
+				case a: ArrayAxis => a.delete(i, count)
+				case _ => validActionNot
+			}
+			control.ui.selection = NullSelection
+			updateDisplay
+		}
+
+		control.ui.selection match {
+			case lab: OneLabel => delete(lab.axis, lab.index, 1)
+			case labs: LabelRange => delete(labs.axis, labs.range.start, labs.range.length)
+			case _ => validActionNot
+		}
+	}
+
+	def labelDeleteAxis {
+		println("delete whole axis")
+	}
+
+	/*------------------------------------------------------------------------*/
+	// GENERAL UTILITY
 
 	private def forAllArraysInBlock(b: TableBlock, f: FlexibleArrayTable=>Unit): Unit =
 		b match {
@@ -317,7 +367,9 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 
 	private def validActionIf(p: Boolean) =
-		if (!p) throw new InapplicableActionException
+		if (!p) validActionNot
+
+	private def validActionNot = throw new InapplicableActionException
 
 	// TODO: Eventually this should not be required; changes to model should
 	// automatically update the view.
@@ -341,6 +393,9 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		insertLeftDiff.dispose
 		insertDownDiff.dispose
 	}
+
+	/*------------------------------------------------------------------------*/
+	// LINES
 
 	import gfx.LineDescriptor
 	import org.eclipse.swt.graphics.RGB
