@@ -30,11 +30,11 @@ object Test {
 		shellLayout.marginHeight = 0
 		shell.setLayout(shellLayout)
 
+/*
 		val hairLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 100), 0.05F))
 		val lightLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 0), 0.333333F))
 		val heavyLine = Some(new LineDescriptor(new graphics.RGB(0, 0, 0), 0.88888888F))
 
-/*
 		// One big array of data:
 		val axis1 = new ArrayAxis{length=10; interItemLine = heavyLine}
 		val axis2 = new ArrayAxis{length=10; interItemLine = lightLine}
