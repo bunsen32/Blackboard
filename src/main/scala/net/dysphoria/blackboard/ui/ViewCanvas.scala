@@ -14,8 +14,9 @@ import swt.events._
 import swt.graphics._
 import swt.widgets.{List=>_, _}
 import blackboard.gfx._
-import ui.Listeners._
-import ui.selection._
+import Listeners._
+import selection._
+import actions._
 
 abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(parent, SWT.H_SCROLL|SWT.V_SCROLL|SWT.DOUBLE_BUFFERED) {
 	private val Origin = new Point(0, 0)
@@ -28,7 +29,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	private val interestingEvents = Array(
 		SWT.Resize,
 		SWT.KeyDown, SWT.KeyUp, SWT.FocusOut,
-		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.DragDetect,
+		SWT.MouseDown, SWT.MouseUp, SWT.MouseWheel, SWT.MouseDoubleClick, SWT.MenuDetect, SWT.DragDetect,
 		SWT.MouseEnter, SWT.MouseExit, SWT.MouseMove,
 		SWT.Help
 		)
@@ -37,17 +38,20 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	type GeometryChangedListener = Function[ViewCanvas,Unit]
 	val geometryChangedListeners = new mutable.HashSet[GeometryChangedListener]
 
+	val app: Application
 	val table: Table
-	/*val navigator = new Navigator {
-		val table = ViewCanvas.this.table
-	}*/
 	val ui = new UIState(this)
 	val policy = new EditingStatePolicy(this)
 	val cellEdit = new GridTextEditor(this)
-	
-	var mouseX = -1
-	var mouseY = 0
 
+	val popup = new MenuManager(new Menu(this.getShell, SWT.POP_UP))
+	popup.add(app.actions.GroupRowCols)
+	popup.add(app.actions.HideLabel)
+	popup.add(app.actions.ShowHiddenLabels)
+	popup.addSeparator
+	popup.add(app.actions.DeleteRowCols)
+	popup.add(app.actions.DeleteAxis)
+	
 	final val pixelFactor = 256
 	final val unitScale = 1F / pixelFactor
 	final val minScale = 0.2F * unitScale
@@ -96,7 +100,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	}
 
 	private def handleEvent(e: Event) {
-		val state = new EventState(e.stateMask)
+		val state = new EventState(e)
 		val point = viewToModel(new Point(e.x, e.y))
 
 		e.`type` match {
@@ -105,8 +109,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 				val oldScale = scale
 				val newScale = quantiseScale(minScale max power(oldScale, 1.05F, e.count) min maxScale)
 				if (oldScale != newScale) {
-					// 1:1 scale is special. If the zoom 'crosses' 1:1, snap
-					// to exactly 1:1
+					// 1:1 scale is special. If the zoom 'crosses' 1:1, snap to exactly 1:1
 					scale = if ((oldScale < unitScale && newScale > unitScale) || (oldScale > unitScale && newScale < unitScale))
 							unitScale
 						else
@@ -125,11 +128,22 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 			case SWT.MouseDown =>
 				val item = selectableThingAt(point)
-				if (item != ui.selection)
-					ui.select(item)
+				if (state.isPrimaryButton) {
+					if (item == ui.selection) {
+						if (item.isInstanceOf[SingleGridSelection]) beginCellEdit(None)
+							
+					} else
+						ui.select(item)
 
-				else if (item.isInstanceOf[SingleGridSelection])
-					beginCellEdit(None)
+				} else {
+					// If mouse click is not primary button, select the thing under
+					// the mouse, unless it is already selected, in which case the
+					// user may wish to invoke a popup menu on it, so don't change selection.
+					if (!ui.selection.contains(item)) {
+						endCellEdit
+						ui.select(item)
+					}
+				}
 					
 				/*if (state.isExtendSelect)
 					ui.extendSelectionTo(hitThing)
@@ -146,6 +160,16 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 						ui.select(hitThing)
 					}
 				}*/
+
+			case SWT.MenuDetect =>
+				// MenuDetect events are in Display coordinates, not control coordinates.
+				// (But they're rare, so don't mind the slight redundancy.)
+				val point = viewToModel(this.toControl(e.x, e.y))
+				val item = selectableThingAt(point)
+				if (item.isInstanceOf[OneLabel]){
+					popup.menu.setLocation(e.x, e.y)
+					popup.menu.setVisible(true)
+				}
 
 			case SWT.MouseUp =>
 				if (ui.dragState == MouseDown)
@@ -174,8 +198,8 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 					}
 				}
 			
-			case SWT.MouseExit => mouseX = -1; redraw
-			case SWT.MouseEnter=> ;
+			case SWT.MouseExit =>
+			case SWT.MouseEnter=>
 			case SWT.KeyDown =>
 				// Hide mouse pointer if user presses a non-modifier key. 
 				// Ignore repeats.
@@ -380,11 +404,6 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 				for(d <- ui.dropTarget)
 					d.render(gfx, Origin)
 			}
-			if (mouseX != -1){
-				gc.setForeground(gfx.colorForRGB(red))
-				gc.drawLine(mouseX, 0, mouseX, canvasArea.height)
-				gc.drawLine(0, mouseY, canvasArea.width, mouseY)
-			}
 
 		}catch{
 			case ex => {println(ex); throw ex}
@@ -426,6 +445,8 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			case _ => error("Selection not a single cell.")
 		}
 	}
+
+	def endCellEdit { ui.fineEditMode = false }
 
 	/**
 	 * If selection is off end of data, expand the axes to fit.

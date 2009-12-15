@@ -96,6 +96,9 @@ object Test {
 			elements = Seq(inner1, inner2, inner3)
 		}
 */
+		val app0 = new Application {
+			var currentView: ui.ViewCanvas = null
+		}
 
 		val block = new ArrayBlock {
 			xAxes = Nil
@@ -105,8 +108,10 @@ object Test {
 		val table0 = new ui.Table(block)
 		table0.computeSize
 		val view = new ui.ViewCanvas(shell, SWT.NONE) {
+			val app = app0
 			val table = table0
 		}
+		app0.currentView = view
 
 		val menu = new Menu(shell, SWT.BAR)
 		shell setMenuBar menu
@@ -114,6 +119,19 @@ object Test {
 		fileMenuItem setText "File"
 		val editMenuItem = new MenuItem(menu, SWT.CASCADE)
 		editMenuItem setText "Edit"
+		val tableMenuItem = new MenuItem(menu, SWT.CASCADE)
+		tableMenuItem setText "Table"
+		val tableMenu = new actions.MenuManager(tableMenuItem)
+		tableMenu.add(app0.actions.GroupRowCols)
+		tableMenu.add(app0.actions.HideLabel)
+		tableMenu.add(app0.actions.ShowHiddenLabels)
+		tableMenu.addSeparator
+		tableMenu.add(app0.actions.RepeatRowCol)
+		tableMenu.add(app0.actions.InsertSimilarRowCol)
+		tableMenu.add(app0.actions.InsertDistinctRowCol)
+		tableMenu.addSeparator
+		tableMenu.add(app0.actions.DeleteRowCols)
+		tableMenu.add(app0.actions.DeleteAxis)
 
 		shell.pack
 		shell.open

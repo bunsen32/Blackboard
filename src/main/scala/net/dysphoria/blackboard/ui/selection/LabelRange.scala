@@ -16,4 +16,17 @@ case class LabelRange(block: TableBlock, orientation: Orientation, allCoordsButL
 
 	lazy val first = OneLabel(block, orientation, allCoordsButLast + (axis -> range.first))
 	lazy val last = OneLabel(block, orientation, allCoordsButLast + (axis -> range.last))
+
+	override def contains(other: Selectable) = other match {
+		case lab: OneLabel =>
+			lab.block == this.block &&
+			lab.orientation == this.orientation &&
+			lab.allCoordsButLast == this.allCoordsButLast &&
+			lab.axis == this.axis &&
+			this.range.contains(lab.index)
+
+		case other: LabelRange => contains(other.first) && contains(other.last)
+			
+		case _ => false
+	}
 }

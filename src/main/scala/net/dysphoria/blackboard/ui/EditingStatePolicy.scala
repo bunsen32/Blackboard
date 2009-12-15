@@ -6,6 +6,7 @@
 
 package net.dysphoria.blackboard.ui
 
+import actions.InapplicableActionException
 import selection._
 
 /**
@@ -29,24 +30,32 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	val deleteGlyph = new DeleteOverlayGlyph(device)
 
 	val singleCellCtrls = Seq(
-		EditingNodeSpec(Right, insertRightSame, ()=>cellInsertSimilarAfter(Horizontal)),
+		EditingNodeSpec(Right, insertRightSame, ()=>cellInsertRepeatedAfter(Horizontal)),
 		EditingNodeSpec(Right, insertRightDiff, ()=>cellInsertDifferentAfter(Horizontal)),
-		EditingNodeSpec(Down, insertDownSame, ()=>cellInsertSimilarAfter(Vertical)),
+		EditingNodeSpec(Down, insertDownSame, ()=>cellInsertRepeatedAfter(Vertical)),
 		EditingNodeSpec(Down, insertDownDiff, ()=>cellInsertDifferentAfter(Vertical)))
 
 	val singleCellXCtrls = Seq(
-		EditingNodeSpec(Right, insertRightSame, ()=>cellInsertSimilarAfter(Horizontal)),
+		EditingNodeSpec(Right, insertRightSame, ()=>cellInsertRepeatedAfter(Horizontal)),
 		EditingNodeSpec(Right, insertRightDiff, ()=>cellInsertDifferentAfter(Horizontal)))
 
 	val singleCellYCtrls = Seq(
-		EditingNodeSpec(Down, insertDownSame, ()=>cellInsertSimilarAfter(Vertical)),
+		EditingNodeSpec(Down, insertDownSame, ()=>cellInsertRepeatedAfter(Vertical)),
 		EditingNodeSpec(Down, insertDownDiff, ()=>cellInsertDifferentAfter(Vertical)))
 
-	val labelColCtrls = Seq(
+	val labelColRepCtrls = Seq(
+		EditingNodeSpec(Right, insertRightSame, labelInsertRepeatedAfter _),
+		EditingNodeSpec(Right, insertRightDiff, labelInsertDifferentAfter _))
+
+	val labelRowRepCtrls = Seq(
+		EditingNodeSpec(Down, insertDownSame, labelInsertRepeatedAfter _),
+		EditingNodeSpec(Down, insertDownDiff, labelInsertDifferentAfter _))
+
+	val labelColSamCtrls = Seq(
 		EditingNodeSpec(Right, insertRightSame, labelInsertSimilarAfter _),
 		EditingNodeSpec(Right, insertRightDiff, labelInsertDifferentAfter _))
 
-	val labelRowCtrls = Seq(
+	val labelRowSamCtrls = Seq(
 		EditingNodeSpec(Down, insertDownSame, labelInsertSimilarAfter _),
 		EditingNodeSpec(Down, insertDownDiff, labelInsertDifferentAfter _))
 
@@ -75,7 +84,8 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			(num match {
 				case 0 => Nil
 				case 1 => o.choose(labelColArrayCtrls, labelRowArrayCtrls)
-				case 2 => o.choose(labelColCtrls, labelRowCtrls)
+				case 2 => o.choose(labelColSamCtrls, labelRowSamCtrls)
+				case 3 => o.choose(labelColRepCtrls, labelRowRepCtrls)
 			}) ++ (
 				if (deleteAxis) o.choose(deleteColAxisCtrls, deleteRowAxisCtrls) else Nil
 			) ++ (
@@ -102,7 +112,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				val deleteAxis = axis.length <= 1
 				val deleteLabel = (axis.length - 1 >= axis.minimumLength)
 				_selectionEditingOverlay.set(rect, labelCtrls(lab.orientation, deleteLabel, deleteAxis, axis match {
-					case s: StructAxis => 2
+					case s: StructAxis => 3
 					case a: ArrayAxis if lab.index >= a.last => 2
 					case _ => 1
 				}))
@@ -113,8 +123,8 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				val deleteAxis = axis.length <= labs.range.length
 				val deleteLabel = (axis.length - labs.range.length) >= axis.minimumLength
 				_selectionEditingOverlay.set(rect, labelCtrls(labs.orientation, deleteLabel, deleteAxis, axis match {
-					case s: StructAxis => 2
-					case a: ArrayAxis if eq(labs.range, a.range) => 2
+					case s: StructAxis => 3
+					case a: ArrayAxis if eq(labs.range, a.range) => 3
 					case a: ArrayAxis => 0
 					case _ => 0
 				}))
@@ -129,14 +139,23 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	/*------------------------------------------------------------------------*/
 	// ACTIONS
 
-	def labelInsertSimilarAfter {
+	def labelInsertRepeatedAfter {
+		def repeatWholeAxis(labs: LabelSelection) {
+			val block = labs.block
+			val existingAxes = block.axes(labs.orientation)
+			val newAxis = new ArrayAxis(2){interItemLine = thickerThan(labs.axis.interItemLine)}
+			block.axes(labs.orientation) = existingAxes.take(labs.axisIndex) ++ Some(newAxis) ++ existingAxes.drop(labs.axisIndex)
+			forAllArraysInBlock(block, _.addDimension(newAxis))
+
+			control.ui.selection = NullSelection
+		}
+
 		control.ui.selection match {
 			case lab: OneLabel =>
 				lab.axis match {
 					case a: ArrayAxis =>
-						val i = if (lab.index >= lab.axis.length) lab.index else lab.index + 1
-						a.insert(i, 1)
-						updateDisplay
+						validActionIf(lab.axis.length == 1)
+						repeatWholeAxis(lab)
 
 					case s: StructAxis =>
 						// Repeat the single struct item
@@ -145,21 +164,11 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						val newAxis = new ArrayAxis(2){interItemLine = thinLine}
 						el.axes(lab.orientation) = Seq(newAxis) ++ el.axes(lab.orientation)
 						forAllArraysInBlock(el, _.addDimension(newAxis))
-						updateDisplay
 				}
 			case labs: LabelRange =>
 				// If user selected range of labels, assume we’re to repeat that range.
 				labs.axis match {
-					case ax if (eq(ax.range, labs.range)) =>
-						// If user has selected whole range of axis.
-						val block = labs.block
-						val existingAxes = block.axes(labs.orientation)
-						val newAxis = new ArrayAxis(2){interItemLine = thickerThan(ax.interItemLine)}
-						block.axes(labs.orientation) = existingAxes.take(labs.axisIndex) ++ Some(newAxis) ++ existingAxes.drop(labs.axisIndex)
-						forAllArraysInBlock(block, _.addDimension(newAxis))
-
-						control.ui.selection = NullSelection
-						updateDisplay
+					case ax if (eq(ax.range, labs.range)) => repeatWholeAxis(labs)
 
 					case a: ArrayAxis =>
 						// The following will evaluate false and fail:
@@ -192,7 +201,22 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						newBlock.axes(labs.orientation) = Seq(newDim, newAxis)
 
 						control.ui.selection = NullSelection
+				}
+			case _ => notValidAction
+		}
+		updateDisplay
+	}
+
+	def labelInsertSimilarAfter {
+		control.ui.selection match {
+			case lab: OneLabel =>
+				lab.axis match {
+					case a: ArrayAxis =>
+						val i = if (lab.index >= lab.axis.length) lab.index else lab.index + 1
+						a.insert(i, 1)
 						updateDisplay
+
+					case s: StructAxis => notValidAction
 				}
 			case _ => notValidAction
 		}
@@ -275,7 +299,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	}
 
 
-	def cellInsertSimilarAfter(o: Orientation) {
+	def cellInsertRepeatedAfter(o: Orientation) {
 		validActionIf(topBlock.axes(o).length == 0)
 
 		val newAxis = new ArrayAxis(1){interItemLine = thinLine}

@@ -9,6 +9,7 @@ package net.dysphoria.blackboard.ui
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics._
 import org.eclipse.swt.widgets._
+import actions.InapplicableActionException
 import Listeners._
 
 class OverlayNode(parent: Composite) {
