@@ -29,7 +29,13 @@ class MenuManager(val menu: Menu) {
 	def add(action: Action) = {
 		val item = new MenuItem(menu, SWT.PUSH)
 		item.setAccelerator(action.accelerator)
-		item.addListener(SWT.Selection, (e: Event) => action.apply())
+		item.addListener(SWT.Selection, (e: Event) => {
+			try {
+				action.apply()
+			}catch {
+				case _: InapplicableActionException => menu.getDisplay.beep
+			}
+		})
 		items += ((item, action))
 	}
 

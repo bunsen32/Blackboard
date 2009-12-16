@@ -387,23 +387,21 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			val canvasArea = getClientArea
 			val gridSize = table.size
 
-			gfx.withclip(new Rectangle(0, 0, canvasArea.width, canvasArea.height)){
-				val trans = gfx.newTransform
-				trans.identity
-				trans.scale(scale.toFloat, scale.toFloat)
-				trans.translate(- offsetX.toFloat, - offsetY.toFloat)
-				gc.setTransform(trans)
+			val trans = gfx.newTransform
+			trans.identity
+			trans.scale(scale.toFloat, scale.toFloat)
+			trans.translate(- offsetX.toFloat, - offsetY.toFloat)
+			gc.setTransform(trans)
 
-				gc.setBackground(gc.getDevice.getSystemColor(SWT.COLOR_GRAY))
-				gc.fillRectangle(0, 0, gridSize.x, gridSize.y)
+			gc.setBackground(gc.getDevice.getSystemColor(SWT.COLOR_GRAY))
+			gc.fillRectangle(0, 0, gridSize.x, gridSize.y)
 
-				table.render(gfx, Origin)
+			table.render(gfx, Origin)
 
-				trans.identity
-				gc.setTransform(trans)
-				for(d <- ui.dropTarget)
-					d.render(gfx, Origin)
-			}
+			trans.identity
+			gc.setTransform(trans)
+			for(d <- ui.dropTarget)
+				d.render(gfx, Origin)
 
 		}catch{
 			case ex => {println(ex); throw ex}
@@ -425,6 +423,10 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			case SWT.ARROW_RIGHT => moveSelection(Horizontal, Forward, ByOne)
 			case SWT.TAB if shift => moveSelection(Horizontal, Back, ByOne)
 			case SWT.TAB if !shift => moveSelection(Horizontal, Forward, ByOne)
+			case SWT.DEL if ui.selection.isInstanceOf[LabelSelection] =>
+				// Hack: ignore keypress to allow it to work as menu shortcut.
+				e.doit = false
+				
 			case SWT.DEL | SWT.BS if potentialCellEdit => beginCellEdit(Some(""))
 			case _ if potentialCellEdit && !e.character.isControl => beginCellEdit(Some(e.character.toString))
 			case SWT.CR | SWT.KEYPAD_CR if potentialCellEdit => beginCellEdit(None)

@@ -46,15 +46,25 @@ class DrawingContext(val gc: GC, val ui: UIState) {
 	}
 
 	private var currentClipRect: Rectangle = null
+
+	/**
+	 * Execute the given ‘op’ while the graphics context is clipped to the given
+	 * cliprect. Note that changing the transform screws up nested clipping completely,
+	 * so only call this in a context where the graphics transformation stays stable.
+	 */
 	def withclip(rect: Rectangle)(op: => Unit) {
 		val oldRect = if (currentClipRect == null) gc.getClipping else currentClipRect
-		currentClipRect = (rect intersection oldRect)
-		gc.setClipping(currentClipRect)
-		try {
-			op
+		var newRect = (rect intersection oldRect)
+		if (! newRect.isEmpty) {
+			currentClipRect = newRect
+			gc.setClipping(currentClipRect)
+			try {
+				op
 
-		}finally{
-			gc.setClipping(oldRect)
+			}finally{
+				currentClipRect = oldRect
+				gc.setClipping(currentClipRect)
+			}
 		}
 	}
 

@@ -90,17 +90,80 @@ trait TableActions { self: ActionsHolder =>
 
 	object HideLabel extends Action {
 		def name = "Hide label"
-		def isApplicable = currentSelection.isInstanceOf[LabelSelection] //TODO
+		def isApplicable = currentSelection match {
+			case lab: OneLabel => (lab.block, lab.axis) match {
+				case (block: StructBlock, axis: StructAxis) =>
+					// If this axis is the last one in its block:
+					lab.axisIndex == (block.axes(lab.orientation).length - 1) &&
+					// And there are child axes:
+					! block.elementFor(lab.coords).axes(lab.orientation).isEmpty
+
+				case _ => false
+			}
+
+			case _ => false
+		}
 		def safeApply {
-			// TODO
+			currentSelection match {
+				case lab: OneLabel => lab.axis match {
+					case s: StructAxis =>
+						s.elements(lab.index) = (s.label(lab.index), false)
+						currentView.policy.updateDisplay
+						
+					case _=>
+				}
+				case _ =>
+			}
 		}
 	}
 
 	object ShowHiddenLabels extends Action {
 		def name = "Show hidden label"
-		def isApplicable = currentSelection.isInstanceOf[LabelSelection] //TODO
+
+		def isApplicable = {
+			currentSelection match {
+				case lab: LabelSelection =>
+					val o = lab.orientation
+					val coords = lab.allCoordsButLast
+					def recurse(b: TableBlock): Boolean = b match {
+						case s: StructBlock =>
+							val axis = s.structAxis
+							coords.contains(axis) && {
+								val i = coords(axis)
+								// (Less efficient, but matches structure of safeApply.)
+								recurse(s.elements(i)) ||
+									!axis.visible(i)
+							}
+						case _ => false
+					}
+					recurse(currentView.table.topBlock)
+				case _ => false
+			}
+		}
 		def safeApply {
-			// TODO
+			currentSelection match {
+				case lab: LabelSelection =>
+					val o = lab.orientation
+					val coords = lab.allCoordsButLast
+					def recurse(b: TableBlock): Boolean = b match {
+						case s: StructBlock =>
+							val axis = s.structAxis
+							coords.contains(axis) && {
+								val i = coords(axis)
+								recurse(s.elements(i)) || {
+									val action = !axis.visible(i)
+									if (action) {
+										s.structAxis.elements(i) = (axis.label(i), true)
+										currentView.policy.updateDisplay
+									}
+									action
+								}
+							}
+						case _ => false
+					}
+					recurse(currentView.table.topBlock)
+				case _ => //ignore
+			}
 		}
 	}
 

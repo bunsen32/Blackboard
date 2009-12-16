@@ -11,7 +11,7 @@ import selection.OneLabel
 class LabelEditor(label: OneLabel) extends GridEditSource {
 	def read = label.axis.label(label.index).toString
 	def write(str: String) = label.axis match {
-		case s: StructAxis => s.elements(label.index) = str
+		case s: StructAxis => s.elements(label.index) = (str, s.visible(label.index))
 		case _ => // read-only
 	}
 	def getBounds(canvas: ViewCanvas) = canvas.table.labelBounds(label)

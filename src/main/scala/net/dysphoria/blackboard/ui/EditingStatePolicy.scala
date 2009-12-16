@@ -286,6 +286,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				for(ax <- lab.parentCoords.keys) onlyArrayAxis(ax, newChild.array.addDimension(_))
 
 				val newAxis = new StructAxis(2){interItemLine = thickerThan(arrayAxis.interItemLine)}
+				newAxis.elements(0) = ("data", false) // Hide struct element for existing array.
 				val newTop = new StructBlock(newAxis)
 				newTop.orientation = o
 				newTop.axes(o) = promotedAxes ++ Some(newAxis)
@@ -440,7 +441,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 	// TODO: Eventually this should not be required; changes to model should
 	// automatically update the view.
-	private def updateDisplay {
+	def updateDisplay {
 		control.table.computeSize
 		control.computeBounds
 		control.redraw

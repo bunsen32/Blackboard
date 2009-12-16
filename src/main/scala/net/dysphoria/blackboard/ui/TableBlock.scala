@@ -45,11 +45,11 @@ abstract class TableBlock {
 
 	def labelStyle(axis: Axis, index: Int) = defaultLabelStyle
 
-	def preferredLabelDepth(labelOrientation: Orientation, a: Axis, i: Int) =
-		if (a.label(i) == "")
-			0
-		else
-			if (labelOrientation.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
+	def preferredLabelDepth(labelOrientation: Orientation, a: Axis, i: Int) = a match {
+		case s: StructAxis if !s.visible(i) => 0
+		case _ => if (labelOrientation.isX) xLabelHeight(a, i) else yLabelWidth(a, i)
+	}
+			
 
 	def labelDepth(labelOrientation: Orientation, a: Axis, i: Int): Int
 
@@ -526,18 +526,20 @@ abstract class TableBlock {
 				error("Unrecognised textAlign value "+style.textAlign)
 			
 		// Only set clipping if we need to:
-		if (x < 0 || y < 0 || x+w >= bounds.width || y + h >= bounds.height)
-			// Clip to exactly top-left and slightly beyond bottom-right:
-			g.withclip(alignedRect){
-				// Because we have clipped to exact top-left coordinate, fill to beyond
-				// top-left to ensure that we don't leave a gap.
-				gc.fillRectangle(roundTopLeft(g, alignedRect))
+		if (!bounds.isEmpty) {
+			if (x < 0 || y < 0 || x+w >= bounds.width || y + h >= bounds.height)
+				// Clip to exactly top-left and slightly beyond bottom-right:
+				g.withclip(alignedRect){
+					// Because we have clipped to exact top-left coordinate, fill to beyond
+					// top-left to ensure that we don't leave a gap.
+					gc.fillRectangle(roundTopLeft(g, alignedRect))
+					gc.drawString(value, bounds.x+x, bounds.y+y, true)
+				}
+			else {
+				// Fill from exactly top-left and slightly beyond bottom-right:
+				gc.fillRectangle(alignedRect)
 				gc.drawString(value, bounds.x+x, bounds.y+y, true)
 			}
-		else {
-			// Fill from exactly top-left and slightly beyond bottom-right:
-			gc.fillRectangle(alignedRect)
-			gc.drawString(value, bounds.x+x, bounds.y+y, true)
 		}
 	}
 
