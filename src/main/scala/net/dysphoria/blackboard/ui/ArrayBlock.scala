@@ -11,7 +11,7 @@ import org.eclipse.swt.graphics._
 import gfx._
 import selection._
 
-class ArrayBlock extends TableBlock {
+class ArrayBlock(val table: Table) extends TableBlock {
 	var array = new FlexibleArrayTable(Nil)
 	val cellStyle = new CellStyle
 	val voidCellStyle = new CellStyle {
@@ -50,8 +50,8 @@ class ArrayBlock extends TableBlock {
 	def renderCell(gfx: DrawingContext, bounds: Rectangle, indices: Map[Axis, Int]){
 		val withinData = !indices.exists(pair => pair._2 >= pair._1.length)
 		val selected = gfx.ui.selection match {
-			case CellSelection(coords) => coordinatesMatch(indices, coords)
-			case _=> false
+			case CellSelection(_, coords) => if (coordinatesMatch(indices, coords)) 2 else 0
+			case _=> 0
 		}
 		if (withinData){
 			renderBasicCell(gfx, cellStyle, bounds,
@@ -84,7 +84,7 @@ class ArrayBlock extends TableBlock {
 	}
 
 	def hitTestCell(coords: Map[Axis,Int], relative: Point) =
-		CellSelection(coords)
+		CellSelection(table, coords)
 
 
 	def arrayTable(coords: Map[Axis,Int]) = array
@@ -102,14 +102,14 @@ class ArrayBlock extends TableBlock {
 
 		case _ =>
 			nextOnAxes(axes(o), sel.coords, d) match {
-				case Some(coords) => CellSelection(coords)
+				case Some(coords) => CellSelection(sel.table, coords)
 				case None => NullSelection
 			}
 	}
 
 
-	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable = 
-		CellSelection(context 
+	def selectEdgeChild(context: Map[Axis,Int], plane: Orientation, end: End, hintSel: SingleGridSelection): Selectable =
+		CellSelection(table, context
 					  ++ axesEnd(plane, end)
 					  ++ hintCoords(axes(plane.opposite), hintSel.coords))
 

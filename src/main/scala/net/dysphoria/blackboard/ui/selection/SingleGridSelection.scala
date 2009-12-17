@@ -10,6 +10,7 @@ package net.dysphoria.blackboard.ui.selection
  * A single grid cell (either label or data cell).
  */
 trait SingleGridSelection extends Selectable {
+	def table: Table
 	val coords: Map[Axis, Int]
 	def hintCoords = coords
 	

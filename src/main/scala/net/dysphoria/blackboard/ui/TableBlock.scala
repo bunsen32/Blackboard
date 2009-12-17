@@ -16,6 +16,7 @@ abstract class TableBlock {
 	val genericCellHeight = 19*256 // Need to get rid of these at some point.
 	val genericCellWidth = 50*256 // Will be replaced by the CSS styles.
 
+	val table: Table
 	var xAxes: Seq[Axis] = Nil
 	var yAxes: Seq[Axis] = Nil
 
@@ -29,7 +30,7 @@ abstract class TableBlock {
 	private val defaultLabelStyle = new CellStyle {
 		marginLeft = 2
 		marginRight= 2
-		backgroundColor = new RGB(90, 90, 180)
+		backgroundColor = new RGB(78, 105, 180)
 		color = new RGB(0, 0, 0)
 		textAlign = TextAlignCenter
 		fontStyle = SWT.BOLD
@@ -42,6 +43,7 @@ abstract class TableBlock {
 		textAlign = TextAlignCenter
 		fontStyle = SWT.BOLD | SWT.ITALIC
 	}
+	private val highlightRGB = new RGB(255, 255, 0)
 
 	def labelStyle(axis: Axis, index: Int) = defaultLabelStyle
 
@@ -119,13 +121,13 @@ abstract class TableBlock {
 
 	def renderLabels(gfx: DrawingContext, dataOrigin: Point, o:Orientation, coords: Map[Axis, Int]){
 		
-		def renderOwnLabels(b0: Int, d0: Int, availableDepth: Int,
+		def ownLabels(b0: Int, d0: Int, availableDepth: Int,
 						 axes: Seq[Axis], coords: Map[Axis, Int]): Int = {
 
 			iterateAxis(b0, axes, (b0, axis, i, remainingAxes)=>{
 					val updatedCoords = coords.update(axis, i)
 					val depth = labelDepth(o, axis, i)
-					val breadth = renderOwnLabels(b0, d0, availableDepth - depth, remainingAxes, updatedCoords)
+					val breadth = ownLabels(b0, d0, availableDepth - depth, remainingAxes, updatedCoords)
 					var d1 = d0 - availableDepth
 					val lBounds = o.newRectangle(b0, d1, breadth, depth)
 					renderHeaderLabel(gfx, lBounds, axis, i, updatedCoords)
@@ -137,7 +139,7 @@ abstract class TableBlock {
 				})
 		}
 
-		renderOwnLabels(o.breadth(dataOrigin), o.depth(dataOrigin), nearHeader(o), axes(o), coords)
+		ownLabels(o.breadth(dataOrigin), o.depth(dataOrigin), nearHeader(o), axes(o), coords)
 	}
 
 
@@ -482,14 +484,21 @@ abstract class TableBlock {
 	def renderHeaderLabel(gfx: DrawingContext, bounds: Rectangle, ax: Axis, index: Int, thisCoords: Map[Axis,Int]) {
 		val withinData = ax.range.contains(index)
 		val selected = gfx.ui.selection match {
-			case lab: OneLabel => (lab.block == this) && (thisCoords == lab.coords)
+			case lab: OneLabel => if ((lab.block == this) && (thisCoords == lab.coords)) 2 else 0
 				
 			case labs: LabelRange if (labs.block == this) && thisCoords.contains(labs.axis) =>
 				val thisV = thisCoords(labs.axis)
 				lazy val selCoords = labs.allCoordsButLast + ((labs.axis, thisV))
-				(labs.range contains thisV) && (selCoords == thisCoords)
+				if ((labs.range contains thisV) && (selCoords == thisCoords)) 2 else 0
 
-			case _=> false
+			case cell: CellSelection =>
+				@inline def matches(l: Option[OneLabel]) = l match {
+					case None => false
+					case Some(lab) => lab.block == this && coordinatesMatch(lab.coords, thisCoords)
+				}
+				if (matches(cell.hLabel) || matches(cell.vLabel)) 1 else 0
+
+			case _ => 0
 		}
 		if (withinData)
 			renderBasicCell(gfx, labelStyle(ax, index), bounds,
@@ -500,10 +509,9 @@ abstract class TableBlock {
 	}
 
 
-	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selected: Boolean) {
+	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selectIntensity: Int) {
 		import g.gc
-		val bg = if (selected) g.gc.getDevice().getSystemColor(SWT.COLOR_YELLOW)
-						  else g.colorForRGB(style.backgroundColor)
+		val bg = g.colorForRGB(mixBackground(style.backgroundColor, selectIntensity))
 		val alignedRect = roundBottomRight(g, bounds)
 		gc.setBackground(bg)
 		gc.setForeground(g.colorForRGB(style.color))
@@ -540,6 +548,26 @@ abstract class TableBlock {
 				gc.fillRectangle(alignedRect)
 				gc.drawString(value, bounds.x+x, bounds.y+y, true)
 			}
+		}
+	}
+
+	def mixBackground(bg: RGB, highlightIntensity: Int): RGB = highlightIntensity match {
+		case 0 => bg
+		case 2 => highlightRGB
+		case 1 => mix(bg, highlightRGB, 180)
+	}
+
+	def mix(one: RGB, two: RGB, alpha: Int) = {
+		require(alpha >= 0 && alpha <= 256)
+		alpha match {
+			case 0 => two
+			case 256=>one
+			case _ =>
+				val other = (256 - alpha)
+				new RGB(
+					((one.red * alpha) + (two.red * other)) >> 8,
+					((one.green * alpha) + (two.green * other)) >> 8,
+					((one.blue * alpha) + (two.blue * other)) >> 8);
 		}
 	}
 

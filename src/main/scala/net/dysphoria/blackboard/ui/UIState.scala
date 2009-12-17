@@ -76,7 +76,7 @@ class UIState(val control: ViewCanvas) {
 
 	private def updateFineEditMode {
 		selection match {
-			case CellSelection(coords) =>
+			case CellSelection(_, coords) =>
 				val array = control.table.arrayTable(coords)
 				control.cellEdit.beginEdit(new CellEditor(array, coords))
 

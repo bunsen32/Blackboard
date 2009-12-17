@@ -201,7 +201,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			val (startIx, endIx) = (labs.range.start, labs.range.last + 1)
 
 			val newAxis = new StructAxis(labs.range.length){interItemLine = thinnerThan(thinnerThan(oldAxis.interItemLine))}
-			val newBlock = new StructBlock(newAxis)
+			val newBlock = new StructBlock(labs.table, newAxis)
 			newBlock.orientation = labs.orientation
 			newBlock.elements ++= oldBlock.elements.slice(startIx, endIx)
 			newBlock.axes(labs.orientation) = Seq(newAxis)
@@ -252,7 +252,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		(lab.axis, lab.block) match {
 			case (s: StructAxis, b: StructBlock) =>
 				s.insert(lab.index + 1, 1)
-				val arr = new ArrayBlock
+				val arr = new ArrayBlock(lab.table)
 				for((ax: ArrayAxis, _) <- lab.parentCoords) arr.array.addDimension(ax)
 				for(a <- lab.block.xAxes) onlyArrayAxis(a, arr.array.addDimension(_))
 				for(a <- lab.block.yAxes) onlyArrayAxis(a, arr.array.addDimension(_))
@@ -292,14 +292,14 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				b.axes(o) = existingAxes
 				b.axes(orthogonal) = existingOrthAxes
 
-				val newChild = new ArrayBlock
+				val newChild = new ArrayBlock(fromBlock.table)
 				for(ax <- promotedAxes) onlyArrayAxis(ax, newChild.array.addDimension(_))
 				for(ax <- promotedOrthAxes) onlyArrayAxis(ax, newChild.array.addDimension(_))
 				for(ax <- lab.parentCoords.keys) onlyArrayAxis(ax, newChild.array.addDimension(_))
 
 				val newAxis = new StructAxis(2){interItemLine = thickerThan(arrayAxis.interItemLine)}
 				newAxis.elements(0) = ("data", false) // Hide struct element for existing array.
-				val newTop = new StructBlock(newAxis)
+				val newTop = new StructBlock(fromBlock.table, newAxis)
 				newTop.orientation = o
 				newTop.axes(o) = promotedAxes ++ Some(newAxis)
 				newTop.axes(orthogonal) = promotedOrthAxes
@@ -319,6 +319,8 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		newAxis.insert(1, 1) // A new column
 		topBlock.axes(o) = List(newAxis)
 		forAllArraysInBlock(topBlock, a => a.addDimension(newAxis))
+
+		control.ui.selection = NullSelection
 		updateDisplay
 	}
 
@@ -329,12 +331,12 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		val(promotedArrayAxes, existingOrthAxes) = topLevelArrayAxes(topBlock.axes(orthogonal))
 
 		topBlock.axes(orthogonal) = existingOrthAxes
-		val newChild = new ArrayBlock
+		val newChild = new ArrayBlock(topBlock.table)
 		newChild.axes(orthogonal) = existingOrthAxes
 		for(ax <- promotedArrayAxes) newChild.array.addDimension(ax)
 
 		val newAxis = new StructAxis(2){interItemLine = thinLine}
-		val newTop = new StructBlock(newAxis)
+		val newTop = new StructBlock(topBlock.table, newAxis)
 		newTop.elements ++= Seq(topBlock, newChild)
 		newTop.orientation = o
 		newTop.axes(o) = List(newAxis)

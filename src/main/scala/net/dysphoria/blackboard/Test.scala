@@ -100,13 +100,14 @@ object Test {
 			var currentView: ui.ViewCanvas = null
 		}
 
-		val block = new ArrayBlock {
+		val table0 = new ui.Table(null)
+		val block = new ArrayBlock(table0) {
 			xAxes = Nil
 			yAxes = Nil
 		}
-
-		val table0 = new ui.Table(block)
+		table0.topBlock = block
 		table0.computeSize
+		
 		val view = new ui.ViewCanvas(shell, SWT.NONE) {
 			val app = app0
 			val table = table0

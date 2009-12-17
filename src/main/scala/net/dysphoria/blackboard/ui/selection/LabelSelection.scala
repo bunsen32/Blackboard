@@ -8,6 +8,7 @@ package net.dysphoria.blackboard.ui.selection
 
 abstract class LabelSelection extends Selectable {
 	def block: TableBlock
+	def table = block.table
 	def orientation: Orientation
 	def parentCoords: Map[Axis,Int]
 	def allCoordsButLast: Map[Axis,Int]

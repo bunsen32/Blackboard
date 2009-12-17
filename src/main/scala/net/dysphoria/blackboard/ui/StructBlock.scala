@@ -12,7 +12,7 @@ import org.eclipse.swt.graphics._
 import gfx._
 import ui.selection._
 
-class StructBlock(val structAxis: StructAxis) extends TableBlock {
+class StructBlock(val table: Table, val structAxis: StructAxis) extends TableBlock {
 	var orientation: Orientation = Horizontal
 	var elements = new mutable.ArrayBuffer[TableBlock]
 	var labelDepths: Array[Int] = null

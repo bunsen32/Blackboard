@@ -9,7 +9,7 @@ package net.dysphoria.blackboard.ui.selection
 /**
  * A single selected axis label. Includes
  */
-case class OneLabel(block: TableBlock, orientation: Orientation, coords: Map[Axis,Int]) 
+case class OneLabel(block: TableBlock, orientation: Orientation, coords: Map[Axis,Int])
 		extends LabelSelection with SingleGridSelection {
 			
 	val actualB = 0
