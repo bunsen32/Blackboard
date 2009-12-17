@@ -18,8 +18,11 @@ trait TableActions { self: ActionsHolder =>
 			case labs: LabelRange => labs.axis.isInstanceOf[StructAxis]
 			case _ => false
 		}
-		def safeApply {
-			// TODO
+		def safeApply = currentSelection match {
+			case labs: LabelRange => 
+				val merged = currentView.policy.groupStructLabels(labs)
+				currentView.ui.select(merged)
+				currentView.policy.updateDisplay
 		}
 	}
 

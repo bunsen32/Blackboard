@@ -23,4 +23,6 @@ class ArrayAxis(initialLength: Int) extends Axis {
 	}
 
 	def minimumLength = 0
+
+	override def toString = "ArrayAxis("+length+")"
 }

@@ -33,4 +33,6 @@ class StructAxis(initialLength: Int) extends Axis {
 	}
 
 	def minimumLength = 1
+	
+	override def toString = elements.map(_._1).mkString("StructAxis(", ",", ")")
 }

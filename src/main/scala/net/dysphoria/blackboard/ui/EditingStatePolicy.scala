@@ -171,7 +171,6 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 					case ax if (eq(ax.range, labs.range)) => repeatWholeAxis(labs)
 
 					case a: ArrayAxis =>
-						// The following will evaluate false and fail:
 						assert(!eq(a.range, labs.range))
 						notValidAction
 
@@ -179,32 +178,45 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						// If user selects a range of struct items, and chooses to
 						// ‘insert similar after’, we treat that as repeating only these struct items.
 						assert(!eq(oldAxis.range, labs.range)) // Already dealt with that above => must genuinely split axis
-						val oldBlock = labs.block.asInstanceOf[StructBlock]
-						val (startIx, endIx) = (labs.range.start, labs.range.last + 1)
-
-						val newAxis = new StructAxis(labs.range.length){interItemLine = thinnerThan(thinnerThan(oldAxis.interItemLine))}
-						val newBlock = new StructBlock(newAxis)
-						newBlock.orientation = labs.orientation
-						newBlock.elements ++= oldBlock.elements.slice(startIx, endIx)
-						assert(newBlock.elements.length == newAxis.length)
-
-						for(_ <- labs.range) {
-							oldBlock.elements.remove(startIx)
-							oldAxis.delete(startIx, 1)
-						}
-						oldBlock.elements.insert(startIx, newBlock)
-						oldAxis.insert(startIx, 1)
-						assert(oldBlock.elements.length == oldAxis.length)
+						val newLab = groupStructLabels(labs)
+						val newBlock = newLab.block.asInstanceOf[StructBlock].elementFor(newLab.coords)
 
 						val newDim = new ArrayAxis(2){interItemLine = thinnerThan(oldAxis.interItemLine)}
 						forAllArraysInBlock(newBlock, _.addDimension(newDim))
-						newBlock.axes(labs.orientation) = Seq(newDim, newAxis)
+						newBlock.axes(labs.orientation) = Seq(newDim) ++ newBlock.axes(labs.orientation)
 
-						control.ui.selection = NullSelection
+						control.ui.selection = newLab
 				}
 			case _ => notValidAction
 		}
 		updateDisplay
+	}
+
+	/**
+	 * Replace given range of Struct labels with a single label which itself contains
+	 * all of the specified labels. Returns a OneLabel which is the new, grouped label.
+	 */
+	def groupStructLabels(labs: LabelRange) = (labs.block, labs.axis) match {
+		case (oldBlock: StructBlock, oldAxis: StructAxis) =>
+			val (startIx, endIx) = (labs.range.start, labs.range.last + 1)
+
+			val newAxis = new StructAxis(labs.range.length){interItemLine = thinnerThan(thinnerThan(oldAxis.interItemLine))}
+			val newBlock = new StructBlock(newAxis)
+			newBlock.orientation = labs.orientation
+			newBlock.elements ++= oldBlock.elements.slice(startIx, endIx)
+			newBlock.axes(labs.orientation) = Seq(newAxis)
+			assert(newBlock.elements.length == newAxis.length)
+
+			for(_ <- labs.range) {
+				oldBlock.elements.remove(startIx)
+				oldAxis.delete(startIx, 1)
+			}
+			oldBlock.elements.insert(startIx, newBlock)
+			oldAxis.insert(startIx, 1)
+			assert(oldBlock.elements.length == oldAxis.length)
+			labs.first
+
+		case _ => throw new IllegalArgumentException("groupStructLabels: requires Struct axis/block")
 	}
 
 	def labelInsertSimilarAfter {
