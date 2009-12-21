@@ -75,7 +75,7 @@ trait TableActions { self: ActionsHolder =>
 	
 	object DeleteRowCols extends Action {
 		def name = "Delete "+rowColString
-		override def accelerator = SWT.DEL
+		override def accelerator = SWT.SHIFT | SWT.DEL
 		def isApplicable = currentSelection.isInstanceOf[LabelSelection]
 		def safeApply {
 			currentView.policy.labelDeleteData
