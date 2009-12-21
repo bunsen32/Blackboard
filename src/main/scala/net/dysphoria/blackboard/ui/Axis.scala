@@ -14,6 +14,14 @@ abstract class Axis {
 	def length: Int
 	def range = 0 until length
 	def label(i: Int): String
+	def label_=(i: Int, s: String)
+	
+	/**
+	 * Certain axis labels are drawn as ‘greyed-out’. For struct axes these are
+	 * ‘hidden’ axis labels; for array axes, these are numbered labels where there
+	 * exist some manually-entered labels.
+	 */
+	def greyed(i: Int): Boolean
 	def first = 0
 	def last = length - 1
 

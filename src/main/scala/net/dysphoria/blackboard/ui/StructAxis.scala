@@ -16,6 +16,10 @@ class StructAxis(initialLength: Int) extends Axis {
 	val elements = new mutable.ArrayBuffer[(String, Boolean)]()
 	def label(i: Int) = elements(i)._1
 	def visible(i: Int) = elements(i)._2
+	def label_=(ix: Int, s: String) = {
+		elements(ix) = (s, visible(ix))
+	}
+	def greyed(ix: Int) = !visible(ix)
 	def length = elements.length
 
 	require(initialLength >= minimumLength)

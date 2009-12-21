@@ -502,19 +502,20 @@ abstract class TableBlock {
 		}
 		if (withinData)
 			renderBasicCell(gfx, labelStyle(ax, index), bounds,
-							ax.label(index), selected)
+							ax.label(index), selected, ax.greyed(index))
 		else
 			renderBasicCell(gfx, voidLabelStyle, bounds,
-							"(none)", selected)
+							"(none)", selected, false)
 	}
 
 
-	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selectIntensity: Int) {
+	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selectIntensity: Int, greyed: Boolean) {
 		import g.gc
-		val bg = g.colorForRGB(mixBackground(style.backgroundColor, selectIntensity))
+		val bg = mixBackground(style.backgroundColor, selectIntensity)
+		val fg = mix(style.color, bg, if (greyed) 80 else 256)
 		val alignedRect = roundBottomRight(g, bounds)
-		gc.setBackground(bg)
-		gc.setForeground(g.colorForRGB(style.color))
+		gc.setBackground(g.colorForRGB(bg))
+		gc.setForeground(g.colorForRGB(fg))
 		gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
 		val fm = gc.getFontMetrics
 		val h = fm.getAscent + fm.getDescent

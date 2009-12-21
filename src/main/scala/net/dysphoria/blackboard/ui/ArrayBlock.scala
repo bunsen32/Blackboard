@@ -55,9 +55,9 @@ class ArrayBlock(val table: Table) extends TableBlock {
 		}
 		if (withinData){
 			renderBasicCell(gfx, cellStyle, bounds,
-							array(indices).toString, selected)
+							array(indices).toString, selected, false)
 		}else{
-			renderBasicCell(gfx, voidCellStyle, bounds, "", selected)
+			renderBasicCell(gfx, voidCellStyle, bounds, "", selected, false)
 		}
 	}
 
