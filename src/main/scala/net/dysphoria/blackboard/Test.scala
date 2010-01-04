@@ -7,6 +7,7 @@ import swt.widgets._
 import swt.SWT
 import swt.events._
 
+import net.dysphoria.blackboard
 import blackboard.gfx._
 import blackboard.ui._
 import Listeners._

@@ -23,6 +23,7 @@ abstract class SemanticError extends LanguageError{
 }
 case class ParseError(node: Ast.Node, message: String) extends SemanticError
 
+import net.dysphoria.blackboard
 import blackboard.data.{types=>t}
 
 abstract class TypeError extends SemanticError

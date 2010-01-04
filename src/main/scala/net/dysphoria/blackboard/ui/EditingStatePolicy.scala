@@ -6,6 +6,7 @@
 
 package net.dysphoria.blackboard.ui
 
+import net.dysphoria.blackboard._
 import actions.InapplicableActionException
 import selection._
 

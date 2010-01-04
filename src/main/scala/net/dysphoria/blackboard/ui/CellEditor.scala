@@ -6,9 +6,6 @@
 
 package net.dysphoria.blackboard.ui
 
-import org.eclipse.swt.SWT
-import org.eclipse.swt.widgets.{Text, Listener}
-
 /**
  * Reusable class (one per CanvasView) for editing cell contents.
  */

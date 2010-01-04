@@ -7,6 +7,7 @@
 
 package net.dysphoria.blackboard
 
+import net.dysphoria.blackboard
 import blackboard.exp._
 import scala.util.parsing.input._
 

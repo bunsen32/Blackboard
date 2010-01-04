@@ -4,7 +4,7 @@
 	
 	<groupId>net.dysphoria</groupId>
 	<artifactId>blackboard</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>1.0-M2</version>
 	<name>Blackboard</name>
 	<inceptionYear>2009</inceptionYear>
 	

@@ -7,6 +7,7 @@
 
 package net.dysphoria.blackboard.exp
 
+import net.dysphoria.blackboard
 import blackboard.data.{types=>t}
 import t.{core=>c}
 import Ast._

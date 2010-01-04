@@ -7,9 +7,10 @@
 
 package net.dysphoria.blackboard.ui
 
+import net.dysphoria.blackboard._
 import data.{types=>t}
 
-abstract class ArrayTable extends Aggregate {
+abstract class ArrayTable {
 	def axes = dimensions
 	def dimensions: Seq[ArrayAxis]
 	def elementType: t.Type

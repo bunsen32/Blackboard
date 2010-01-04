@@ -13,6 +13,7 @@ import swt.SWT
 import swt.events._
 import swt.graphics._
 import swt.widgets.{List=>_, _}
+import net.dysphoria.blackboard
 import blackboard.gfx._
 import Listeners._
 import selection._

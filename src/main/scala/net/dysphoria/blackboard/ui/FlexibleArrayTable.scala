@@ -7,6 +7,7 @@
 package net.dysphoria.blackboard.ui
 
 import scala.collection.mutable
+import net.dysphoria.blackboard._
 import data.{types=>t}
 
 class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {

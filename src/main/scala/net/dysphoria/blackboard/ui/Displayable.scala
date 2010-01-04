@@ -8,6 +8,7 @@
 package net.dysphoria.blackboard.ui
 
 import org.eclipse.swt.graphics._
+import net.dysphoria.blackboard
 import blackboard.gfx._
 
 trait Displayable {

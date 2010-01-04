@@ -8,6 +8,7 @@
 package net.dysphoria.blackboard.ui
 
 import org.eclipse.swt.graphics._
+import net.dysphoria.blackboard._
 import gfx._
 import selection._
 

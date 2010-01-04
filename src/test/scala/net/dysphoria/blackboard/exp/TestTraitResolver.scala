@@ -10,6 +10,7 @@ package net.dysphoria.blackboard.exp
 import org.scalatest.FunSuite
 import org.scalatest.matchers._
 
+import net.dysphoria.blackboard._
 import data.{types=>t}
 import t.{core=>c}
 import Annotations._

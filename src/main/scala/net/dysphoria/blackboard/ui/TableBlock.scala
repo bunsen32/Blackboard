@@ -9,8 +9,9 @@ package net.dysphoria.blackboard.ui
 
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics._
+import net.dysphoria.blackboard
 import blackboard.gfx._
-import ui.selection._
+import blackboard.ui.selection._
 
 abstract class TableBlock {
 	val genericCellHeight = 19*256 // Need to get rid of these at some point.

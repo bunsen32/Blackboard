@@ -8,6 +8,7 @@
 package net.dysphoria.blackboard.ui
 
 import scala.collection.mutable
+import net.dysphoria.blackboard._
 import gfx.LineDescriptor
 
 abstract class Axis {

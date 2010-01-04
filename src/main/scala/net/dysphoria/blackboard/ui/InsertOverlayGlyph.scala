@@ -8,6 +8,7 @@ package net.dysphoria.blackboard.ui
 
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics._
+import net.dysphoria.blackboard._
 import gfx.pathToRegion
 
 abstract class InsertOverlayGlyph(d: Device) extends NodeGlyph(d) {
