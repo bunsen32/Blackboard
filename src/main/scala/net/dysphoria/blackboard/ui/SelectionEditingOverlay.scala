@@ -7,9 +7,8 @@
 package net.dysphoria.blackboard.ui
 
 import scala.collection.mutable
-import selection._
 import org.eclipse.swt.SWT
-import org.eclipse.swt.widgets.{Event, Listener}
+import org.eclipse.swt.widgets.{Event}
 import org.eclipse.swt.graphics.Rectangle
 import Listeners._
 
