@@ -7,6 +7,7 @@
 
 package net.dysphoria.blackboard.exp
 
+import net.dysphoria.blackboard._
 import data.{types=>t}
 
 object Annotations {

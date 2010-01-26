@@ -58,7 +58,7 @@ trait ConcreteSyntax extends syntax.Tokens {
 	case object SubtypeOf extends Keyword("<:")
 	case object SupertypeOf extends Keyword(">:")
 
-	case class Punctuation(override val chars: String) extends Token{
+	abstract class Punctuation(override val chars: String) extends Token{
 		override def toString = "Punct-"+chars
 	}
 	case object Dot extends Punctuation(".")

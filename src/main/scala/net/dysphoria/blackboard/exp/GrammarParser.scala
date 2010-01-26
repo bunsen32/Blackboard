@@ -11,6 +11,7 @@ import scala.util.parsing.input.Reader
 import scala.util.parsing.input.{Position,NoPosition}
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.combinator.syntactical.TokenParsers
+import net.dysphoria.blackboard
 import blackboard.data.types
 import types.{core=>c}
 

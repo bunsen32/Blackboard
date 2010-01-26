@@ -12,6 +12,7 @@
 <!-- purposefully do not indent here, so that generated code indentation looks alright -->
 
 <preamble>
+    import net.dysphoria.blackboard
 	import blackboard.data.types
 	trait Ref {
 		def ident: String

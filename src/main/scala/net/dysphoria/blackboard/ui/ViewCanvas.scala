@@ -12,12 +12,14 @@ import org.eclipse.swt
 import swt.SWT
 import swt.events._
 import swt.graphics._
-import swt.widgets.{List=>_, _}
-import net.dysphoria.blackboard
-import blackboard.gfx._
-import Listeners._
-import selection._
-import actions._
+import swt.widgets.{Composite, Event, Listener, Menu}
+
+import net.dysphoria.blackboard._
+import gfx._
+import ui.Listeners._
+import ui.selection._
+import ui.actions._
+import ui.model._
 
 abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(parent, SWT.H_SCROLL|SWT.V_SCROLL|SWT.DOUBLE_BUFFERED) {
 	private val Origin = new Point(0, 0)
@@ -40,7 +42,9 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	val geometryChangedListeners = new mutable.HashSet[GeometryChangedListener]
 
 	val app: Application
-	val table: Table
+	var model: Group = new Group
+	var instance = model.instance(Map.empty)
+
 	val ui = new UIState(this)
 	val policy = new EditingStatePolicy(this)
 	val cellEdit = new GridTextEditor(this)
@@ -167,7 +171,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 				// (But they're rare, so don't mind the slight redundancy.)
 				val point = viewToModel(this.toControl(e.x, e.y))
 				val item = selectableThingAt(point)
-				if (item.isInstanceOf[OneLabel]){
+				if (item.isInstanceOf[LabelInstance]){
 					popup.menu.setLocation(e.x, e.y)
 					popup.menu.setVisible(true)
 				}
@@ -252,7 +256,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 
 	def selectableThingAt(point: Point): Selectable = {
-		table.hitTest(Map.empty, point)
+		instance.hitTest(point)
 	}
 	//def selectableThingAndRemainderAt(absolute: Point): (Selectable, Point) = {
 		//throw new NotImplementedException
@@ -269,11 +273,11 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val clientArea = getClientArea
 		val canvasWidth = clientArea.width
 		val canvasHeight = clientArea.height
-		val model = table.size
-		val modelWidth = Math.ceil(model.x * scale).toInt
-		val modelHeight = Math.ceil(model.y * scale).toInt
+		val modelSize = model.size
+		val modelWidth = Math.ceil(modelSize.x * scale).toInt
+		val modelHeight = Math.ceil(modelSize.y * scale).toInt
 
-		val dw = model.x - (canvasWidth / scale).toInt
+		val dw = modelSize.x - (canvasWidth / scale).toInt
 		if (modelWidth > canvasWidth){
 			minX = 0
 			maxX = dw
@@ -282,7 +286,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			maxX = minX
 		}
 
-		val dh = model.y - (canvasHeight / scale).toInt
+		val dh = modelSize.y - (canvasHeight / scale).toInt
 		if (modelHeight > canvasHeight){
 			minY = 0
 			maxY = dh
@@ -386,7 +390,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		}
 		try{
 			val canvasArea = getClientArea
-			val gridSize = table.size
+			val gridSize = model.size
 
 			val trans = gfx.newTransform
 			trans.identity
@@ -397,12 +401,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			gc.setBackground(gc.getDevice.getSystemColor(SWT.COLOR_GRAY))
 			gc.fillRectangle(0, 0, gridSize.x, gridSize.y)
 
-			table.render(gfx, Origin)
+			model.render(gfx, Origin, Map.empty)
 
 			trans.identity
 			gc.setTransform(trans)
 			for(d <- ui.dropTarget)
-				d.render(gfx, Origin)
+				d.render(gfx, Origin, Map.empty)
 
 		}catch{
 			case ex => {println(ex); throw ex}
@@ -418,12 +422,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val potentialCellEdit = !ui.fineEditMode &&
 								ui.selection.isInstanceOf[SingleGridSelection]
 		e.keyCode match {
-			case SWT.ARROW_UP => moveSelection(Vertical, Back, ByOne)
-			case SWT.ARROW_DOWN => moveSelection(Vertical, Forward, ByOne)
-			case SWT.ARROW_LEFT => moveSelection(Horizontal, Back, ByOne)
-			case SWT.ARROW_RIGHT => moveSelection(Horizontal, Forward, ByOne)
-			case SWT.TAB if shift => moveSelection(Horizontal, Back, ByOne)
-			case SWT.TAB if !shift => moveSelection(Horizontal, Forward, ByOne)
+			case SWT.ARROW_UP => moveSelection(Up, ByOne)
+			case SWT.ARROW_DOWN => moveSelection(Down, ByOne)
+			case SWT.ARROW_LEFT => moveSelection(Left, ByOne)
+			case SWT.ARROW_RIGHT => moveSelection(Right, ByOne)
+			case SWT.TAB if shift => moveSelection(Left, ByOne)
+			case SWT.TAB if !shift => moveSelection(Right, ByOne)
 			case SWT.DEL if ui.selection.isInstanceOf[LabelSelection] =>
 				// Hack: ignore keypress to allow it to work as menu shortcut.
 				e.doit = false
@@ -457,12 +461,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	def autoVivifySelection(sel: SingleGridSelection) {
 		if (!sel.withinData){
 			sel match {
-				case lab: OneLabel =>
+				case lab: LabelInstance =>
 					val (ax, ix) = (lab.axis, lab.index)
 					assert(ix == ax.length)
 					ax.insert(ix, 1)
 
-				case cel: CellSelection =>
+				case cel: AbstractCellInstance =>
 					for((ax, ix) <- sel.coords) {
 						assert(ix >= 0 && ix <= ax.length)
 						if (ix == ax.length)
@@ -482,12 +486,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val atLeft = emptySelection && (selStart == cellEdit.leftPosition)
 		val atRight = emptySelection && (selStart == cellEdit.rightPosition)
 		e.keyCode match {
-			case SWT.ARROW_UP => moveSelection(Vertical, Back, ByOne); true
-			case SWT.ARROW_DOWN => moveSelection(Vertical, Forward, ByOne); true
-			case SWT.ARROW_LEFT if atLeft => moveSelection(Horizontal, Back, ByOne); true
-			case SWT.ARROW_RIGHT if atRight => moveSelection(Horizontal, Forward, ByOne); true
-			case SWT.TAB if shift => moveSelection(Horizontal, Back, ByOne); true
-			case SWT.TAB if !shift => moveSelection(Horizontal, Forward, ByOne); true
+			case SWT.ARROW_UP => moveSelection(Up, ByOne); true
+			case SWT.ARROW_DOWN => moveSelection(Down, ByOne); true
+			case SWT.ARROW_LEFT if atLeft => moveSelection(Left, ByOne); true
+			case SWT.ARROW_RIGHT if atRight => moveSelection(Right, ByOne); true
+			case SWT.TAB if shift => moveSelection(Left, ByOne); true
+			case SWT.TAB if !shift => moveSelection(Right, ByOne); true
 
 			case SWT.ESC => ui.fineEditMode = false; true
 			case SWT.CR | SWT.KEYPAD_CR => ui.fineEditMode = false; true
@@ -495,29 +499,18 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		}
 	}
 
-	def moveSelection(o: Orientation, d: Direction, granularity: MovementGranularity){
+	def moveSelection(direction: CompassPosition, granularity: MovementGranularity){
 		ui.selection match {
 			case sel: SingleGridSelection =>
-				table.moveByCell(sel, o, d) match {
-					case NullSelection => getDisplay.beep
-					case newSel => ui.select(newSel)
+				implicit val hints: SelectionHints = ui.selectionHintsFor(direction.orientation)
+				sel.adjacent(direction) match {
+					case None => getDisplay.beep
+					case Some(newSel) =>
+						ui.select(newSel)
+						ui.selectionHints = hints
 				}
 			case _ => // ignore
 		}
-		/*
-		ui.selection match {
-			case cell: CellSelection =>
-				granularity match {
-					case ByOne => ui.select(navigator.moveByCell(cell, o, incNotDec).orElse(cell))
-					case _ => //ignore
-				}
-			case lab: OneLabel =>
-				granularity match {
-					case ByOne => ui.select(navigator.moveByOne(lab, o, incNotDec).orElse(lab))
-					case _=>
-				}
-			case _ => //ignore
-		}*/
 	}
 
 
@@ -527,7 +520,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	 */
     override def computeSize(wHint: Int, hHint: Int, changed: Boolean) = {
 		try{
-			val clientSize = table.size
+			val clientSize = model.size
 			val preferredX = Math.max((clientSize.x * scale).toInt, 300)
 			val preferredY = Math.max((clientSize.y * scale).toInt, 200)
 			val idealSize = computeTrim(0, 0, preferredX, preferredY)

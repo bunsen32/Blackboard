@@ -7,7 +7,10 @@
 package net.dysphoria.blackboard.ui.actions
 
 import org.eclipse.swt.SWT
-import selection._
+import net.dysphoria.blackboard._
+import ui._
+import ui.model._
+import ui.selection._
 
 trait TableActions { self: ActionsHolder =>
 
@@ -29,7 +32,7 @@ trait TableActions { self: ActionsHolder =>
 	object RepeatRowCol extends Action {
 		def name = "Repeat "+rowColString
 		def isApplicable = currentSelection match {
-			case lab: OneLabel =>
+			case lab: LabelInstance =>
 				lab.axis.length == 1 ||
 				lab.axis.isInstanceOf[StructAxis]
 				
@@ -47,7 +50,7 @@ trait TableActions { self: ActionsHolder =>
 	object InsertSimilarRowCol extends Action {
 		def name = "Insert similar "+rowColString
 		def isApplicable = currentSelection match {
-			case lab: OneLabel => lab.axis.isInstanceOf[ArrayAxis]
+			case lab: LabelInstance => lab.axis.isInstanceOf[ArrayAxis]
 			case _ => false
 		}
 		def safeApply {
@@ -58,7 +61,7 @@ trait TableActions { self: ActionsHolder =>
 	object InsertDistinctRowCol extends Action {
 		def name = "Insert distinct "+rowColString
 		def isApplicable = currentSelection match {
-			case lab: OneLabel =>
+			case lab: LabelInstance =>
 				lab.index == (lab.axis.length - 1) ||
 				lab.axis.isInstanceOf[StructAxis]
 
@@ -94,8 +97,8 @@ trait TableActions { self: ActionsHolder =>
 	object HideLabel extends Action {
 		def name = "Hide label"
 		def isApplicable = currentSelection match {
-			case lab: OneLabel => (lab.block, lab.axis) match {
-				case (block: StructBlock, axis: StructAxis) =>
+			case lab: LabelInstance => (lab.ownerPartModel, lab.axis) match {
+				case (block: TableStruct, axis: StructAxis) =>
 					// If this axis is the last one in its block:
 					lab.axisIndex == (block.axes(lab.orientation).length - 1) &&
 					// And there are child axes:
@@ -108,7 +111,7 @@ trait TableActions { self: ActionsHolder =>
 		}
 		def safeApply {
 			currentSelection match {
-				case lab: OneLabel => lab.axis match {
+				case lab: LabelInstance => lab.axis match {
 					case s: StructAxis =>
 						s.elements(lab.index) = (s.label(lab.index), false)
 						currentView.policy.updateDisplay
@@ -127,9 +130,9 @@ trait TableActions { self: ActionsHolder =>
 			currentSelection match {
 				case lab: LabelSelection =>
 					val o = lab.orientation
-					val coords = lab.allCoordsButLast
-					def recurse(b: TableBlock): Boolean = b match {
-						case s: StructBlock =>
+					val coords = lab.unambiguousCoords
+					def recurse(b: TablePart): Boolean = b match {
+						case s: TableStruct =>
 							val axis = s.structAxis
 							coords.contains(axis) && {
 								val i = coords(axis)
@@ -139,7 +142,7 @@ trait TableActions { self: ActionsHolder =>
 							}
 						case _ => false
 					}
-					recurse(currentView.table.topBlock)
+					recurse(lab.table.topBlock)
 				case _ => false
 			}
 		}
@@ -147,9 +150,9 @@ trait TableActions { self: ActionsHolder =>
 			currentSelection match {
 				case lab: LabelSelection =>
 					val o = lab.orientation
-					val coords = lab.allCoordsButLast
-					def recurse(b: TableBlock): Boolean = b match {
-						case s: StructBlock =>
+					val coords = lab.unambiguousCoords
+					def recurse(b: TablePart): Boolean = b match {
+						case s: TableStruct =>
 							val axis = s.structAxis
 							coords.contains(axis) && {
 								val i = coords(axis)
@@ -164,7 +167,7 @@ trait TableActions { self: ActionsHolder =>
 							}
 						case _ => false
 					}
-					recurse(currentView.table.topBlock)
+					recurse(lab.table.topBlock)
 				case _ => //ignore
 			}
 		}
@@ -173,8 +176,8 @@ trait TableActions { self: ActionsHolder =>
 	private def rowColString = currentSelection match {
 		case lab: LabelRange if lab.orientation.isX => "columns"
 		case lab: LabelRange if lab.orientation.isY => "rows"
-		case lab: OneLabel if lab.orientation.isX => "column"
-		case lab: OneLabel if lab.orientation.isY => "row"
+		case lab: LabelInstance if lab.orientation.isX => "column"
+		case lab: LabelInstance if lab.orientation.isY => "row"
 		case _ => "row/col"
 	}
 

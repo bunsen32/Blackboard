@@ -7,12 +7,14 @@
 
 package net.dysphoria.blackboard.data
 
+import scala.collection.immutable
+
 /**
  * 'Efficient' implementation of a set of integers; efficient in that contiguous
  * ranges of integers are encoded efficiently. Not efficient for distributed
  * ints or for large sets.
  */
-class RangeIntSet(val ranges: Set[Range]) extends Set[Int] {
+class RangeIntSet(val ranges: Set[Range]) extends immutable.Set[Int] {
 	override def contains(v: Int) = ranges exists (_ contains v)
 	override def elements = ((Iterator.empty:Iterator[Int]) /: ranges)(_ ++ _.elements)
 

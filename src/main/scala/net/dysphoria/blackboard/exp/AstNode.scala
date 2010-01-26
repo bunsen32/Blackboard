@@ -26,7 +26,8 @@ abstract class AstNode {
 	def foreach(f: (AstNode)=>Unit) {
 		f(this) // preorder traversal
 		for((prop, value) <- properties){
-			prop.foreach(value, f)
+			// Hackery. Should instead somehow ensure that ‘value’ is of the right type for ‘prop’.
+			prop.asInstanceOf[Property[Any]].foreach(value, f)
 		}
 	}
 

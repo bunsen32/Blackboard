@@ -10,7 +10,7 @@ import scala.collection.mutable
 import net.dysphoria.blackboard._
 import data.{types=>t}
 
-class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
+class FlexibleDataArray(initialDims: Seq[ArrayAxis]) extends DataArray {
 	val elementType = t.core.String
 
 	private var _dimensions: Array[ArrayAxis] = initialDims.toArray
@@ -99,9 +99,12 @@ class FlexibleArrayTable(initialDims: Seq[ArrayAxis]) extends ArrayTable {
 		_data(flatten(coords)) = value
 	}
 
-	def flatten(coords: Map[Axis,Int]) =
-		for(d <- dimensions) yield coords(d)
-
+	def flatten(coords: Map[Axis,Int]) = {
+		val result = new Array[Int](dimensions.length)
+		for(i <- 0 until dimensions.length)
+			result(i) = coords(dimensions(i))
+		result
+	}
 
 	class IntArrayHashTable extends mutable.HashMap[Array[Int], Any] {
 		override def elemEquals(a: Array[Int], b: Array[Int]): Boolean = {

@@ -28,6 +28,7 @@ class Coord(s: Seq[Int]) extends Seq[Int] {
 
 	override def length = arity
 	override def elements = s.elements
+	def iterator = elements
 
 	override def toString = mkString("(", ", ", ")")
 	override def equals(other: Any) = other match {

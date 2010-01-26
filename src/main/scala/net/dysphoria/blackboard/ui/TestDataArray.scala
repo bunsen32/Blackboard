@@ -11,7 +11,7 @@ import scala.collection.mutable
 import net.dysphoria.blackboard._
 import data.{types=>t}
 
-class TestArray(val dimensions: Seq[ArrayAxis]) extends ArrayTable {
+class TestDataArray(val dimensions: Seq[ArrayAxis]) extends DataArray {
 	val elementType = t.core.String
 
 	val modifications = new mutable.ArrayBuffer[String]

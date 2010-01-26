@@ -9,7 +9,7 @@ package net.dysphoria.blackboard.gfx
 
 import scala.collection._
 import org.eclipse.swt.graphics._
-import blackboard.ui._
+import net.dysphoria.blackboard.ui._
 
 class DrawingContext(val gc: GC, val ui: UIState) {
 
@@ -79,7 +79,7 @@ class DrawingContext(val gc: GC, val ui: UIState) {
 
 
 	/* Tried a region-based solution, but it a) failed to deal with problems
-	 * I was having, re: innaccuracy when clipping within a tranformed gc, and
+	 * I was having, re: inaccuracy when clipping within a transformed gc, and
 	 * b) appeared to be much slower.
 
 	private val clipRegions = new mutable.ArrayBuffer[Region]{

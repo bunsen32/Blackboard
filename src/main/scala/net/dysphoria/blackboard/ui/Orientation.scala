@@ -12,7 +12,7 @@ import org.eclipse.swt.graphics.{Point, Rectangle}
 sealed abstract class Orientation {
 	def isX: Boolean
 	def isY: Boolean
-	def opposite: Orientation
+	def other: Orientation
 
 	def choose(x: Int, y: Int): Int
 	@inline
@@ -31,7 +31,7 @@ sealed abstract class Orientation {
 case object Horizontal extends Orientation {
 	def isX = true
 	def isY = false
-	def opposite = Vertical
+	def other = Vertical
 
 	def choose(x: Int, y: Int) = x
 	def choose[A](x: =>A, y: =>A) = x
@@ -50,7 +50,7 @@ case object Horizontal extends Orientation {
 case object Vertical extends Orientation {
 	def isX = false
 	def isY = true
-	def opposite = Horizontal
+	def other = Horizontal
 
 	def choose(x: Int, y: Int) = y
 	def choose[A](x: =>A, y: =>A) = y

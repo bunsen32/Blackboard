@@ -73,7 +73,7 @@ class SelectionEditingOverlay(val control: ViewCanvas) extends Disposable {
 	def checkRealVisibility {
 		reposition
 		for(n <- _nodePool)
-			n.visible = if (_usedNodes.contains(n)) reallyVisible else false
+			n.visible = _usedNodes.contains(n) && reallyVisible
 	}
 
 	def reposition {

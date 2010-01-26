@@ -9,6 +9,7 @@ package net.dysphoria.blackboard.exp
 
 import scala.collection.Map
 import scala.collection.mutable
+import net.dysphoria.blackboard
 import blackboard.data.{types=>t}
 import t.{core=>c}
 import Ast._

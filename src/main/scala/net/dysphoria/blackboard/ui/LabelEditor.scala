@@ -6,11 +6,11 @@
 
 package net.dysphoria.blackboard.ui
 
-import selection.OneLabel
+import selection.LabelInstance
+import Origin._
 
-class LabelEditor(label: OneLabel) extends GridEditSource {
+class LabelEditor(label: LabelInstance) extends GridEditSource {
 	def read = label.axis.label(label.index).toString
 	def write(str: String) { label.axis.label_=(label.index, str) }
-
-	def getBounds(canvas: ViewCanvas) = canvas.table.labelBounds(label)
+	def getBounds(canvas: ViewCanvas) = canvas.model.boundsOf(Origin, label)
 }

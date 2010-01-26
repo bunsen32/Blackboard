@@ -22,7 +22,7 @@ class StructAxis(initialLength: Int) extends Axis {
 	def greyed(ix: Int) = !visible(ix)
 	def length = elements.length
 
-	require(initialLength >= minimumLength)
+	require(initialLength >= 0)
 	internalInsert(0, initialLength)
 
 	def internalInsert(index: Int, count: Int) {
@@ -36,7 +36,7 @@ class StructAxis(initialLength: Int) extends Axis {
 			elements.remove(index)
 	}
 
-	def minimumLength = 1
+	def nominalMinimumLength = 1
 	
 	override def toString = elements.map(_._1).mkString("StructAxis(", ",", ")")
 }

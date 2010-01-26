@@ -3,14 +3,14 @@ package net.dysphoria.blackboard
 import org.eclipse.swt
 import swt.layout
 import swt.graphics
-import swt.widgets._
+import swt.widgets.{Display, Shell, Menu, MenuItem}
 import swt.SWT
 import swt.events._
 
-import net.dysphoria.blackboard
-import blackboard.gfx._
-import blackboard.ui._
-import Listeners._
+import ui._
+import ui.model._
+import ui.Listeners._
+import ui.Origin._
 
 /**
  * Says “hello” to the world.
@@ -42,26 +42,26 @@ object Test {
 		val axis3 = new ArrayAxis{length=2; interItemLine = lightLine}
 		val axis4 = new ArrayAxis{length=3; interItemLine = hairLine}
 		val n = None
-		val block = new ArrayBlock{
+		val block = new TableArrayData{
 			xAxes = Seq(axis1, axis3)
 			yAxes = Seq(axis2, axis4)
-			array = new TestArray(Array(axis1, axis2, axis3, axis4))
+			array = new TestDataArray(Array(axis1, axis2, axis3, axis4))
 		}
 
 		// List of 10 items, and a total:
 		val axisA = new ArrayAxis{length=10; interItemLine = lightLine}
 		val axisS = new StructAxis{elements = List("Data", "Total"); interItemLine = heavyLine}
-		val data = new ArrayBlock {
+		val data = new TableArrayData {
 			xAxes = Nil
 			yAxes = Seq(axisA)
-			array = new TestArray(Array(axisA))
+			array = new TestDataArray(Array(axisA))
 		}
-		val total = new ArrayBlock {
+		val total = new TableArrayData {
 			xAxes = Nil
 			yAxes = Nil
-			array = new TestArray(Array()) 
+			array = new TestDataArray(Array())
 		}
-		val block = new StructBlock {
+		val block = new TableStruct {
 			orientation = Vertical
 			structAxis = axisS
 			xAxes = Nil
@@ -74,22 +74,22 @@ object Test {
 		val axisA2 = new ArrayAxis{length=3; interItemLine = lightLine}
 		val axisA3 = new ArrayAxis{length=4; interItemLine = lightLine}
 
-		val inner1 = new ArrayBlock {
+		val inner1 = new TableArrayData {
 			xAxes = Nil
 			yAxes = Seq(axisA1)
-			array = new TestArray(Array(axisA2, axisA3, axisA1))
+			array = new TestDataArray(Array(axisA2, axisA3, axisA1))
 		}
-		val inner2 = new ArrayBlock {
+		val inner2 = new TableArrayData {
 			xAxes = Nil
 			yAxes = Nil
-			array = new TestArray(Array(axisA2, axisA3))
+			array = new TestDataArray(Array(axisA2, axisA3))
 		}
-		val inner3 = new ArrayBlock {
+		val inner3 = new TableArrayData {
 			xAxes = Nil
 			yAxes = Nil
-			array = new TestArray(Array(axisA2, axisA3))
+			array = new TestDataArray(Array(axisA2, axisA3))
 		}
-		val block = new StructBlock {
+		val block = new TableStruct {
 			orientation = Horizontal
 			structAxis = axisS1
 			xAxes = Seq(axisS1, axisA2)
@@ -101,18 +101,18 @@ object Test {
 			var currentView: ui.ViewCanvas = null
 		}
 
-		val table0 = new ui.Table(null)
-		val block = new ArrayBlock(table0) {
+		val table0 = new ui.model.Table(null)
+		val block = new TableArrayData(table0) {
 			xAxes = Nil
 			yAxes = Nil
 		}
 		table0.topBlock = block
-		table0.computeSize
 		
 		val view = new ui.ViewCanvas(shell, SWT.NONE) {
 			val app = app0
-			val table = table0
+			model.add(Origin, table0)
 		}
+		view.model.computeSize
 		app0.currentView = view
 
 		val menu = new Menu(shell, SWT.BAR)

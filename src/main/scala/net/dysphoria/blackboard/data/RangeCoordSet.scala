@@ -14,7 +14,7 @@ import scala.collection.{mutable, immutable}
  * mostly contained within contiguous (hyper)cubes (e.g., from selecting a range
  * of spreadsheet cells...). Points are represented as Seq[Int]
  */
-class RangeCoordSet(val ranges: immutable.Set[CoordCube]) extends Set[Coord] {
+class RangeCoordSet(val ranges: immutable.Set[CoordCube]) extends immutable.Set[Coord] {
 	def this(initialRange: CoordCube) = this(Set(initialRange))
 
 	override def contains(coords: Coord) = ranges exists (_ contains coords)

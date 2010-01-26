@@ -10,12 +10,13 @@ package net.dysphoria.blackboard.ui
 import scala.collection.mutable
 
 class ArrayAxis(initialLength: Int) extends Axis {
-	require(initialLength >= minimumLength)
+	require(initialLength >= nominalMinimumLength)
 
 	var length = initialLength
 	val labels = new mutable.ArrayBuffer[String]
 	var labelsCount = 0
 	def defaultLabel(ix: Int) = (ix + 1).toString
+	
 	def label(ix: Int) =
 		if (ix < labels.length && labels(ix) != null)
 			labels(ix)
@@ -60,7 +61,7 @@ class ArrayAxis(initialLength: Int) extends Axis {
 		}
 	}
 
-	def minimumLength = 0
+	def nominalMinimumLength = 0
 
 	override def toString = "ArrayAxis("+length+")"
 }

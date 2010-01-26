@@ -9,11 +9,14 @@ package net.dysphoria.blackboard.ui
 
 import scala.collection.mutable
 import org.eclipse.swt.graphics.Point
+
+import model._
 import selection._
 
 import org.eclipse.swt.widgets.Control
 
 class UIState(val control: ViewCanvas) {
+	var selectionHints: SelectionHints = NullSelectionHints
 	private var originalSelection: Selectable = NullSelection
 	private var currentSelection: Selectable = NullSelection
 	var isIncludingNotExcluding = false
@@ -68,19 +71,22 @@ class UIState(val control: ViewCanvas) {
 	def selection_=(s: Selectable) {
 		if (currentSelection != s) {
 			currentSelection = s
+			selectionHints = NullSelectionHints
 			control.redraw
 			if (fineEditMode) updateFineEditMode
 			onChange
 		}
 	}
 
+	def selectionHintsFor(orientation: Orientation) =
+		selectionHints.forDirection(orientation, selection)
+
 	private def updateFineEditMode {
 		selection match {
-			case CellSelection(_, coords) =>
-				val array = control.table.arrayTable(coords)
-				control.cellEdit.beginEdit(new CellEditor(array, coords))
+			case cell: DataCellInstance =>
+				control.cellEdit.beginEdit(new CellEditor(cell))
 
-			case label: OneLabel =>
+			case label: LabelInstance =>
 				control.cellEdit.beginEdit(new LabelEditor(label))
 
 			case _ => control.cellEdit.endEdit
@@ -131,7 +137,7 @@ class UIState(val control: ViewCanvas) {
 
 	def makeRange(base: Selectable, extension: Selectable): Selectable = {
 		(base, extension) match {
-			case (s0: OneLabel, s1: OneLabel) => s0 to s1
+			case (s0: LabelInstance, s1: LabelInstance) => s0 to s1
 /*
 			case (s: HasTableCell, cell: HasTableCell) if cell.block == s.block =>
 				s to cell

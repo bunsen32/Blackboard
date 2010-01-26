@@ -6,9 +6,13 @@
 
 package net.dysphoria.blackboard.ui
 
+import scala.collection.mutable
+
 import net.dysphoria.blackboard._
 import actions.InapplicableActionException
-import selection._
+import ui.selection._
+import ui.model._
+import Origin._
 
 /**
  * This class is responsible for deciding what operations are available in different
@@ -94,24 +98,27 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			)
 		}
 
-		val noXAxes = (topBlock.xAxes.length == 0)
-		val noYAxes = (topBlock.yAxes.length == 0)
-		control.ui.selection match {
-			case cell: CellSelection if noXAxes || noYAxes =>
-				val rect = control.table.cellBounds(cell.coords)
-				val ctrls = if (noXAxes && noYAxes)
-						singleCellCtrls
-					else if (noXAxes)
-						singleCellXCtrls
-					else
-						singleCellYCtrls
-				_selectionEditingOverlay.set(rect, ctrls)
+		currentSelection match {
+			case cell: AbstractCellInstance =>
+				val noXAxes = (cell.table.topBlock.xAxes.length == 0)
+				val noYAxes = (cell.table.topBlock.yAxes.length == 0)
+				if (noXAxes || noYAxes) {
+					val rect = control.model.boundsOf(Origin, cell)
+					val ctrls = if (noXAxes && noYAxes)
+							singleCellCtrls
+						else if (noXAxes)
+							singleCellXCtrls
+						else
+							singleCellYCtrls
+					_selectionEditingOverlay.set(rect, ctrls)
+				}else
+					_selectionEditingOverlay.visible = false
 
-			case lab: OneLabel =>
-				val rect = control.table.labelBounds(lab)
+			case lab: LabelInstance =>
+				val rect = control.model.boundsOf(Origin, lab)
 				val axis = lab.axis
 				val deleteAxis = axis.length <= 1
-				val deleteLabel = (axis.length - 1 >= axis.minimumLength)
+				val deleteLabel = (axis.length - 1 >= axis.nominalMinimumLength)
 				_selectionEditingOverlay.set(rect, labelCtrls(lab.orientation, deleteLabel, deleteAxis, axis match {
 					case s: StructAxis => 3
 					case a: ArrayAxis if lab.index >= a.last => 2
@@ -119,10 +126,10 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				}))
 
 			case labs: LabelRange =>
-				val rect = labelRangeRect(control.table, labs)
+				val rect = control.model.boundsOf(Origin, labs)
 				val axis = labs.axis
 				val deleteAxis = axis.length <= labs.range.length
-				val deleteLabel = (axis.length - labs.range.length) >= axis.minimumLength
+				val deleteLabel = (axis.length - labs.range.length) >= axis.nominalMinimumLength
 				_selectionEditingOverlay.set(rect, labelCtrls(labs.orientation, deleteLabel, deleteAxis, axis match {
 					case s: StructAxis => 3
 					case a: ArrayAxis if eq(labs.range, a.range) => 3
@@ -142,17 +149,17 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 	def labelInsertRepeatedAfter {
 		def repeatWholeAxis(labs: LabelSelection) {
-			val block = labs.block
+			val block = labs.ownerPartModel
 			val existingAxes = block.axes(labs.orientation)
 			val newAxis = new ArrayAxis(2){interItemLine = thickerThan(labs.axis.interItemLine)}
 			block.axes(labs.orientation) = existingAxes.take(labs.axisIndex) ++ Some(newAxis) ++ existingAxes.drop(labs.axisIndex)
 			forAllArraysInBlock(block, _.addDimension(newAxis))
 
-			control.ui.selection = NullSelection
+			currentSelection = NullSelection
 		}
 
-		control.ui.selection match {
-			case lab: OneLabel =>
+		currentSelection match {
+			case lab: LabelInstance =>
 				lab.axis match {
 					case a: ArrayAxis =>
 						validActionIf(lab.axis.length == 1)
@@ -160,7 +167,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 					case s: StructAxis =>
 						// Repeat the single struct item
-						val b = lab.block.asInstanceOf[StructBlock]
+						val b = lab.ownerPartModel.asInstanceOf[TableStruct]
 						val el = b.elementFor(lab.coords)
 						val newAxis = new ArrayAxis(2){interItemLine = thinLine}
 						el.axes(lab.orientation) = Seq(newAxis) ++ el.axes(lab.orientation)
@@ -180,13 +187,13 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						// ‘insert similar after’, we treat that as repeating only these struct items.
 						assert(!eq(oldAxis.range, labs.range)) // Already dealt with that above => must genuinely split axis
 						val newLab = groupStructLabels(labs)
-						val newBlock = newLab.block.asInstanceOf[StructBlock].elementFor(newLab.coords)
+						val newBlock = newLab.ownerPartModel.asInstanceOf[TableStruct].elementFor(newLab.coords)
 
 						val newDim = new ArrayAxis(2){interItemLine = thinnerThan(oldAxis.interItemLine)}
 						forAllArraysInBlock(newBlock, _.addDimension(newDim))
 						newBlock.axes(labs.orientation) = Seq(newDim) ++ newBlock.axes(labs.orientation)
 
-						control.ui.selection = newLab
+						currentSelection = newLab
 				}
 			case _ => notValidAction
 		}
@@ -195,14 +202,14 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 	/**
 	 * Replace given range of Struct labels with a single label which itself contains
-	 * all of the specified labels. Returns a OneLabel which is the new, grouped label.
+	 * all of the specified labels. Returns a LabelInstance which is the new, grouped label.
 	 */
-	def groupStructLabels(labs: LabelRange) = (labs.block, labs.axis) match {
-		case (oldBlock: StructBlock, oldAxis: StructAxis) =>
+	def groupStructLabels(labs: LabelRange) = (labs.ownerPartModel, labs.axis) match {
+		case (oldBlock: TableStruct, oldAxis: StructAxis) =>
 			val (startIx, endIx) = (labs.range.start, labs.range.last + 1)
 
 			val newAxis = new StructAxis(labs.range.length){interItemLine = thinnerThan(thinnerThan(oldAxis.interItemLine))}
-			val newBlock = new StructBlock(labs.table, newAxis)
+			val newBlock = new TableStruct(labs.table, newAxis)
 			newBlock.orientation = labs.orientation
 			newBlock.elements ++= oldBlock.elements.slice(startIx, endIx)
 			newBlock.axes(labs.orientation) = Seq(newAxis)
@@ -221,8 +228,8 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	}
 
 	def labelInsertSimilarAfter {
-		control.ui.selection match {
-			case lab: OneLabel =>
+		currentSelection match {
+			case lab: LabelInstance =>
 				lab.axis match {
 					case a: ArrayAxis =>
 						val i = if (lab.index >= lab.axis.length) lab.index else lab.index + 1
@@ -242,65 +249,77 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	 * an existing array axis, adds a whole new StructAxis above the ArrayAxis.
 	 */
 	def labelInsertDifferentAfter {
-		control.ui.selection match {
-			case lab: OneLabel => insertDifferentAfterSingleLabel(lab)
+		currentSelection match {
+			case lab: LabelInstance => insertDifferentAfterSingleLabel(lab)
 			case labs: LabelRange => insertDifferentAfterSingleLabel(labs.last)
 			case _ => notValidAction
 		}
 	}
 
-	def insertDifferentAfterSingleLabel(lab: OneLabel) {
-		(lab.axis, lab.block) match {
-			case (s: StructAxis, b: StructBlock) =>
-				s.insert(lab.index + 1, 1)
-				val arr = new ArrayBlock(lab.table)
-				for((ax: ArrayAxis, _) <- lab.parentCoords) arr.array.addDimension(ax)
-				for(a <- lab.block.xAxes) onlyArrayAxis(a, arr.array.addDimension(_))
-				for(a <- lab.block.yAxes) onlyArrayAxis(a, arr.array.addDimension(_))
-				b.elements.insert(lab.index + 1, arr)
+	def insertDifferentAfterSingleLabel(label: LabelInstance) {
+		(label.axis, label.ownerPartModel) match {
+			case (s: StructAxis, b: TableStruct) =>
+				s.insert(label.index + 1, 1)
+				val arr = new TableArrayData(label.table)
+				for(ax <- allArrayAxesInLabelScope(label)) arr.array.addDimension(ax)
+				b.elements.insert(label.index + 1, arr)
 				updateDisplay
 
 			case (a: ArrayAxis, b) =>
-				val existingAxes = b.axes(lab.orientation)
+				val existingAxes = b.axes(label.orientation)
 				val structAxisIndex = existingAxes.findIndexOf(_.isInstanceOf[StructAxis])
 				// Currently a struct axes is always the ‘lowest’ (latest) axis
-				// on a StructBlock’s primary orientation... so adding a struct axis
+				// on a TableStruct’s primary orientation... so adding a struct axis
 				// above an array axis implies adding it above any existing other
 				// struct axis. [If we want to handle case where adding new struct
 				// axis below existing one, need a) to determine correct semantics
 				// and b) implement it!]
-				validActionIf(structAxisIndex == -1 || structAxisIndex > lab.axisIndex)
-				control.table.topBlock = splitAfterArray(control.table.topBlock, lab, a)
+				validActionIf(structAxisIndex == -1 || structAxisIndex > label.axisIndex)
+				label.table.topBlock = splitAfterArray(label.table.topBlock, label, a)
 				
-				control.ui.selection = NullSelection
+				currentSelection = NullSelection
 				updateDisplay
 		}
 	}
 
-	def splitAfterArray(fromBlock: TableBlock, lab: OneLabel, arrayAxis: ArrayAxis): TableBlock = {
+	private def allArrayAxesInLabelScope(label: LabelInstance) = {
+		var axes = mutable.Set.empty[ArrayAxis]
+		for((ax:ArrayAxis, _) <- label.containingPart.coords)
+			axes += ax
+		def addAxesRecursively(partModel: TablePart) {
+			for (a <- partModel.xAxes) forArrayAxis(a, axes += _)
+			for (a <- partModel.yAxes) forArrayAxis(a, axes += _)
+			if (partModel != label.ownerPartModel)
+				addAxesRecursively(partModel.asInstanceOf[TableStruct].elementFor(label.coords))
+		}
+		addAxesRecursively(label.containingPart.model)
+		axes.readOnly
+	}
+
+	def splitAfterArray(fromBlock: TablePart, lab: LabelInstance, arrayAxis: ArrayAxis): TablePart = {
 		fromBlock match {
-			case s: StructBlock if s != lab.block =>
+			case s: TableStruct if s != lab.ownerPartModel =>
 				val i = lab.coords(s.structAxis)
 				s.elements(i) = splitAfterArray(s.elements(i), lab, arrayAxis)
 				s
 
-			case b if b == lab.block =>
-				val (o, orthogonal) = (lab.orientation, lab.orientation.opposite)
+			case b if b == lab.ownerPartModel =>
+				val (o, orthogonal) = (lab.orientation, lab.orientation.other)
 				val (promotedAxes, existingAxes) = splitAt(b.axes(lab.orientation), lab.axisIndex)
 				val (promotedOrthAxes, existingOrthAxes) = topLevelArrayAxes(b.axes(orthogonal))
 				
-				assert(b match {case s: StructBlock => s.orientation != o || existingAxes.contains(s.structAxis); case _ => true})
+				assert(b match {case s: TableStruct => s.orientation != o || existingAxes.contains(s.structAxis); case _ => true})
 				b.axes(o) = existingAxes
 				b.axes(orthogonal) = existingOrthAxes
 
-				val newChild = new ArrayBlock(fromBlock.table)
-				for(ax <- promotedAxes) onlyArrayAxis(ax, newChild.array.addDimension(_))
-				for(ax <- promotedOrthAxes) onlyArrayAxis(ax, newChild.array.addDimension(_))
-				for(ax <- lab.parentCoords.keys) onlyArrayAxis(ax, newChild.array.addDimension(_))
+				val newChild = new TableArrayData(fromBlock.table)
+				for(ax <- promotedAxes) forArrayAxis(ax, newChild.array.addDimension(_))
+				for(ax <- promotedOrthAxes) forArrayAxis(ax, newChild.array.addDimension(_))
+				for(ax <- lab.container.unambiguousCoords.keys) forArrayAxis(ax, newChild.array.addDimension(_))
 
 				val newAxis = new StructAxis(2){interItemLine = thickerThan(arrayAxis.interItemLine)}
 				newAxis.elements(0) = ("data", false) // Hide struct element for existing array.
-				val newTop = new StructBlock(fromBlock.table, newAxis)
+				val newTop = new TableStruct(fromBlock.table, newAxis)
 				newTop.orientation = o
 				newTop.axes(o) = promotedAxes ++ Some(newAxis)
 				newTop.axes(orthogonal) = promotedOrthAxes
@@ -308,72 +327,81 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 				newTop
 
-			case _ => error("fromBlock must be either a StructBlock, or else the target block.")
+			case _ => error("fromBlock must be either a TableStruct, or else the target block.")
 		}
 	}
 
 
-	def cellInsertRepeatedAfter(o: Orientation) {
-		validActionIf(topBlock.axes(o).length == 0)
+	def cellInsertRepeatedAfter(o: Orientation) = currentSelection match {
+		case cell: AbstractCellInstance =>
+			val topBlock = cell.table.topBlock
+			validActionIf(topBlock.axes(o).length == 0)
 
-		val newAxis = new ArrayAxis(1){interItemLine = thinLine}
-		newAxis.insert(1, 1) // A new column
-		topBlock.axes(o) = List(newAxis)
-		forAllArraysInBlock(topBlock, a => a.addDimension(newAxis))
+			val newAxis = new ArrayAxis(1){interItemLine = thinLine}
+			newAxis.insert(1, 1) // A new column
+			topBlock.axes(o) = List(newAxis)
+			forAllArraysInBlock(topBlock, a => a.addDimension(newAxis))
 
-		control.ui.selection = NullSelection
-		updateDisplay
+			currentSelection = NullSelection
+			updateDisplay
+
+		case _ => notValidAction
 	}
 
-	def cellInsertDifferentAfter(o: Orientation) {
-		validActionIf(topBlock.isInstanceOf[ArrayBlock] && topBlock.axes(o).length == 0)
+	def cellInsertDifferentAfter(o: Orientation)  = currentSelection match {
+		case cell: AbstractCellInstance =>
+			val table = cell.table
+			val topBlock = table.topBlock
+			validActionIf(topBlock.isInstanceOf[TableArrayData] && topBlock.axes(o).length == 0)
 
-		val orthogonal = o.opposite
-		val(promotedArrayAxes, existingOrthAxes) = topLevelArrayAxes(topBlock.axes(orthogonal))
+			val orthogonal = o.other
+			val(promotedArrayAxes, existingOrthAxes) = topLevelArrayAxes(topBlock.axes(orthogonal))
 
-		topBlock.axes(orthogonal) = existingOrthAxes
-		val newChild = new ArrayBlock(topBlock.table)
-		newChild.axes(orthogonal) = existingOrthAxes
-		for(ax <- promotedArrayAxes) newChild.array.addDimension(ax)
+			topBlock.axes(orthogonal) = existingOrthAxes
+			val newChild = new TableArrayData(topBlock.table)
+			newChild.axes(orthogonal) = existingOrthAxes
+			for(ax <- promotedArrayAxes) newChild.array.addDimension(ax)
 
-		val newAxis = new StructAxis(2){interItemLine = thinLine}
-		val newTop = new StructBlock(topBlock.table, newAxis)
-		newTop.elements ++= Seq(topBlock, newChild)
-		newTop.orientation = o
-		newTop.axes(o) = List(newAxis)
-		newTop.axes(orthogonal) = promotedArrayAxes
+			val newAxis = new StructAxis(2){interItemLine = thinLine}
+			val newTop = new TableStruct(topBlock.table, newAxis)
+			newTop.elements ++= Seq(topBlock, newChild)
+			newTop.orientation = o
+			newTop.axes(o) = List(newAxis)
+			newTop.axes(orthogonal) = promotedArrayAxes
 
-		control.table.topBlock = newTop
+			table.topBlock = newTop
 
-		control.ui.selection = NullSelection
-		updateDisplay
+			currentSelection = NullSelection
+			updateDisplay
+
+		case _ => notValidAction
 	}
 
 	
 	def labelDeleteData {
-		def delete(block: TableBlock, axis: Axis, i: Int, count: Int) {
-			validActionIf((axis.length - count) >= axis.minimumLength)
+		def delete(block: TablePart, axis: Axis, i: Int, count: Int) {
+			validActionIf((axis.length - count) >= axis.nominalMinimumLength)
 			(axis, block) match {
 				case (a: ArrayAxis, _) => a.delete(i, count)
-				case (s: StructAxis, sb: StructBlock) =>
+				case (s: StructAxis, sb: TableStruct) =>
 					s.delete(i, count)
 					for(_ <- 1 to count) sb.elements.remove(i)
 			}
-			control.ui.selection = NullSelection
+			currentSelection = NullSelection
 			updateDisplay
 		}
 
-		control.ui.selection match {
-			case lab: OneLabel => delete(lab.block, lab.axis, lab.index, 1)
-			case labs: LabelRange => delete(labs.block, labs.axis, labs.range.start, labs.range.length)
+		currentSelection match {
+			case lab: LabelInstance => delete(lab.ownerPartModel, lab.axis, lab.index, 1)
+			case labs: LabelRange => delete(labs.ownerPartModel, labs.axis, labs.range.start, labs.range.length)
 			case _ => notValidAction
 		}
 	}
 
 	def labelDeleteAxis {
-		control.ui.selection match {
+		currentSelection match {
 			case sel: LabelSelection =>
-				val block = sel.block
+				val block = sel.ownerPartModel
 				val o = sel.orientation
 				sel.axis match {
 					case a: ArrayAxis =>
@@ -381,23 +409,23 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 						block.axes(o) = block.axes(o).filter(_ != a)
 						
 					case s: StructAxis =>
-						control.table.topBlock = coalesceStruct(control.table.topBlock, sel)
+						sel.table.topBlock = coalesceStruct(sel.table.topBlock, sel)
 				}
-				control.ui.selection = NullSelection
+				currentSelection = NullSelection
 				updateDisplay
 
 			case _ => notValidAction
 		}
 	}
 
-	def coalesceStruct(block: TableBlock, sel: LabelSelection): TableBlock = {
+	def coalesceStruct(block: TablePart, sel: LabelSelection): TablePart = {
 		block match {
-			case s: StructBlock if s != sel.block =>
-				val i = sel.parentCoords(s.structAxis)
+			case s: TableStruct if s != sel.ownerPartModel =>
+				val i = sel.unambiguousCoords(s.structAxis)
 				s.elements(i) = coalesceStruct(s.elements(i), sel)
 				s
 
-			case s: StructBlock if s == sel.block =>
+			case s: TableStruct if s == sel.ownerPartModel =>
 				val child = s.elements(0)
 				def joinAxes(o: Orientation) {
 					child.axes(o) = s.axes(o).filter(_ != sel.axis) ++
@@ -417,10 +445,15 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	/*------------------------------------------------------------------------*/
 	// GENERAL UTILITY
 
-	private def forAllArraysInBlock(b: TableBlock, f: FlexibleArrayTable=>Unit): Unit =
+	private def currentSelection = control.ui.selection
+	private def currentSelection_=(newSel: Selectable) {
+		control.ui.selection = newSel
+	}
+
+	private def forAllArraysInBlock(b: TablePart, f: FlexibleDataArray=>Unit): Unit =
 		b match {
-			case a: ArrayBlock => f(a.array) // TODO
-			case b: StructBlock =>
+			case a: TableArrayData => f(a.array)
+			case b: TableStruct =>
 				for(el <- b.elements)
 					forAllArraysInBlock(el, f)
 		}
@@ -435,18 +468,12 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		 axes.dropWhile(a => a.isInstanceOf[ArrayAxis]))
 
 
-	private def onlyArrayAxis(o: Axis, f: ArrayAxis=>Unit) =
+	private def forArrayAxis(o: Axis, f: ArrayAxis=>Unit) =
 		if (o.isInstanceOf[ArrayAxis]) f(o.asInstanceOf[ArrayAxis])
-
-	private def labelRangeRect(t: Table, labs: LabelRange) = {
-		val r1 = t.labelBounds(labs.first)
-		val r2 = t.labelBounds(labs.last)
-		r1.union(r2)
-	}
 
 	// Required for now (pre Scala2.8), since Range equality is broken in 2.7
 	private def eq(r1: Range, r2: Range) =
-		(r1.start == r2.start) && (r1.last == r2.last) && (r1.step == r2.step)
+		(r1.start == r2.start) && (r1.length == r2.length) && (r1.step == r2.step)
 
 
 	private def validActionIf(p: Boolean) =
@@ -457,13 +484,11 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	// TODO: Eventually this should not be required; changes to model should
 	// automatically update the view.
 	def updateDisplay {
-		control.table.computeSize
+		control.model.computeSize
 		control.computeBounds
 		control.redraw
 		updateState
 	}
-
-	def topBlock = control.table.topBlock
 
 	def dispose {
 		insertRightSame.dispose

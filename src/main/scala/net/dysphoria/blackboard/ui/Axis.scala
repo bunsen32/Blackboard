@@ -37,7 +37,7 @@ abstract class Axis {
 	def delete(index: Int, count: Int) {
 		require(count > 0)
 		require(index >= 0 && index <= (length - count))
-		require(length - count >= minimumLength, "Class invariant violated")
+		require(length - count >= 0)
 		internalDelete(index, count)
 		notifyAxisChangedListeners(index, count, 0)
 	}
@@ -46,9 +46,9 @@ abstract class Axis {
 	protected def internalDelete(index: Int, count: Int)
 
 	/**
-	 * Class invariant: length >= minimumLength
+	 * Normally you want to delete the axis when number of elements is less than this.
 	 */
-	def minimumLength: Int
+	def nominalMinimumLength: Int
 
 	type AxisChangedListener = Function4[Axis,Int,Int,Int,Unit]
 	val axisChangedListeners = new mutable.HashSet[AxisChangedListener]

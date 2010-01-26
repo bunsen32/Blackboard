@@ -10,6 +10,7 @@ package net.dysphoria.blackboard.exp
 import scala.collection.mutable
 import scala.util.Sorting
 import scala.collection.Map
+import net.dysphoria.blackboard
 import Ast._
 import Annotations._
 import blackboard.data.{types=>t}

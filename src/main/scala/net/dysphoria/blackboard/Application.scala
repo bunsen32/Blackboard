@@ -10,8 +10,7 @@ import ui.ViewCanvas
 import ui.actions._
 
 abstract class Application {
-	object actions extends ActionsHolder
-		with TableActions {
+	object actions extends ActionsHolder with TableActions {
 
 		override def app = Application.this
 	}
