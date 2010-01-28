@@ -48,12 +48,12 @@ class UIState(val control: ViewCanvas) {
 
 	def extendSelectionTo(s: Selectable) = {
 		anchor match {
-			case NullSelection => select(s)
-			case _ => if (focus != s){
+			case _ if (focus != s) =>
 				focus = s
 				val range = makeRange(anchor, s)
 				selection = combine(originalSelection, isIncludingNotExcluding, range)
-			}
+			
+			case _ =>
 		}
 	}
 

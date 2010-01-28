@@ -8,7 +8,7 @@
 package net.dysphoria.blackboard.ui.selection
 
 abstract class Selectable {
-	def contains(other: Selectable) = false
+	def contains(other: Selectable) = (this == other)
 	def orElse(other: => Selectable) = this
 }
 

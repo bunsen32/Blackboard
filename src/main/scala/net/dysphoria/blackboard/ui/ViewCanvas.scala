@@ -110,62 +110,57 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 		e.`type` match {
 			// Events which fire regardless of widget:
-			case SWT.MouseWheel => if (state.isAltBehaviour) {
-				val oldScale = scale
-				val newScale = quantiseScale(minScale max power(oldScale, 1.05F, e.count) min maxScale)
-				if (oldScale != newScale) {
-					// 1:1 scale is special. If the zoom 'crosses' 1:1, snap to exactly 1:1
-					scale = if ((oldScale < unitScale && newScale > unitScale) || (oldScale > unitScale && newScale < unitScale))
-							unitScale
-						else
-							newScale
-					val newScaledPoint = viewToModel(new Point(e.x, e.y))
-					idealOffsetX = offsetX + point.x - newScaledPoint.x
-					idealOffsetY = offsetY + point.y - newScaledPoint.y
-					computeBounds
+			case SWT.MouseWheel =>
+				if (state.isAltBehaviour) {
+					val oldScale = scale
+					val newScale = quantiseScale(minScale max power(oldScale, 1.05F, e.count) min maxScale)
+					if (oldScale != newScale) {
+						// 1:1 scale is special. If the zoom 'crosses' 1:1, snap to exactly 1:1
+						scale = if ((oldScale < unitScale && newScale > unitScale) || (oldScale > unitScale && newScale < unitScale))
+								unitScale
+							else
+								newScale
+						val newScaledPoint = viewToModel(new Point(e.x, e.y))
+						idealOffsetX = offsetX + point.x - newScaledPoint.x
+						idealOffsetY = offsetY + point.y - newScaledPoint.y
+						computeBounds
+					}
+					e.doit = false // consume the event
 				}
-				e.doit = false // consume the event
-			}
+
 			case _ if e.widget != this => ; // skip anything else
 
 			// Events specific to the ViewCanvas widget.
 			case SWT.Resize => computeBounds
 
 			case SWT.MouseDown =>
-				val item = selectableThingAt(point)
+				val hitThing = selectableThingAt(point)
 				if (state.isPrimaryButton) {
-					if (item == ui.selection) {
-						if (item.isInstanceOf[SingleGridSelection]) beginCellEdit(None)
-							
-					} else
-						ui.select(item)
+					if (state.isExtendSelect)
+						ui.extendSelectionTo(hitThing)
 
-				} else {
-					// If mouse click is not primary button, select the thing under
-					// the mouse, unless it is already selected, in which case the
-					// user may wish to invoke a popup menu on it, so don't change selection.
-					if (!ui.selection.contains(item)) {
-						endCellEdit
-						ui.select(item)
-					}
-				}
-					
-				/*if (state.isExtendSelect)
-					ui.extendSelectionTo(hitThing)
+					else if (state.isMultiSelect)
+						ui.toggle(hitThing)
 
-				else if (state.isMultiSelect)
-					ui.toggle(hitThing)
-
-				else {
-					if (ui.selection contains hitThing){ // potential drag
+					else if (ui.selection contains hitThing){ // potential drag
 						ui.focus = hitThing
-						ui.dragState = MouseDown(remainder.x, remainder.y) // Doesn't /really/ start til mouse moves.
+						ui.dragState = MouseDown(point.x, point.y) // Doesn't /really/ start til mouse moves.
+						if (ui.selection.isInstanceOf[SingleGridSelection]) beginCellEdit(None)
 
 					} else {
 						ui.select(hitThing)
 					}
-				}*/
 
+				} else {
+					// If mouse click is not primary button, select the thing under
+					// the mouse, unless it is already selected, (in which case the
+					// user may wish to invoke a popup menu on it, so don't change selection).
+					if (!ui.selection.contains(hitThing)) {
+						endCellEdit
+						ui.select(hitThing)
+					}
+				}
+					
 			case SWT.MenuDetect =>
 				// MenuDetect events are in Display coordinates, not control coordinates.
 				// (But they're rare, so don't mind the slight redundancy.)
@@ -190,16 +185,16 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 							val hitThing = selectableThingAt(point)
 							ui.extendSelectionTo(hitThing)
 						}
-						//mouseX = e.x; mouseY = e.y
 					}
-					case _ => ;//ignore
+					case _ => //ignore
 				}
 			
-			case SWT.DragDetect => 
+			case SWT.DragDetect =>
+				println("drag-detect")
 				if (ui.dragState.isInstanceOf[MouseDown]){
 					ui.selection match {
 						//case b: SingleGridSpace => DragOperation.start(new BlockDragClient(this))
-						case _ => ;//ignore
+						case _ => //ignore
 					}
 				}
 			
@@ -254,13 +249,9 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			power(result*d, d, e-1)
 
 
-
 	def selectableThingAt(point: Point): Selectable = {
 		instance.hitTest(point)
 	}
-	//def selectableThingAndRemainderAt(absolute: Point): (Selectable, Point) = {
-		//throw new NotImplementedException
-	//}
 
 
 	/**
@@ -277,22 +268,22 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val modelWidth = Math.ceil(modelSize.x * scale).toInt
 		val modelHeight = Math.ceil(modelSize.y * scale).toInt
 
-		val dw = modelSize.x - (canvasWidth / scale).toInt
+		val differenceWidth = modelSize.x - (canvasWidth / scale).toInt
 		if (modelWidth > canvasWidth){
 			minX = 0
-			maxX = dw
+			maxX = differenceWidth
 		}else{
-			minX = dw / 2
-			maxX = minX
+			minX = 0
+			maxX = 0
 		}
 
-		val dh = modelSize.y - (canvasHeight / scale).toInt
+		val differenceHeight = modelSize.y - (canvasHeight / scale).toInt
 		if (modelHeight > canvasHeight){
 			minY = 0
-			maxY = dh
+			maxY = differenceHeight
 		}else{
-			minY = dh / 2
-			maxY = minY
+			minY = 0
+			maxY = 0
 		}
 
 		updateOrigin(true)
@@ -347,12 +338,11 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 		val x = minX max idealOffsetX.round.toInt min maxX
 		val y = minY max idealOffsetY.round.toInt min maxY
-		if (x != offsetX || y != offsetY) {
+		if (x != offsetX || y != offsetY || scaleChanged) {
 			offsetX = x; offsetY = y
 			redraw
 			updateListeners
-		}else
-			if (scaleChanged) updateListeners
+		}
 	}
 
 	def viewToModel(p: Point): Point = viewToModel(p.x, p.y)
@@ -515,7 +505,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 
 	/**
-	 * Deliver the preferred size of the control. Assumes that 'table' already
+	 * Deliver the preferred size of the control. Assumes that the model already
 	 * has an available computed size.
 	 */
     override def computeSize(wHint: Int, hHint: Int, changed: Boolean) = {

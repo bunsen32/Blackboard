@@ -30,10 +30,10 @@ class TableArrayData(val table: Table) extends TableArray {
 			case _=> 0
 		}
 		if (withinData){
-			renderBasicCell(gfx, cellStyle, bounds,
+			gfx.renderBasicCell(cellStyle, bounds,
 							array(indices).toString, selected, false)
 		}else{
-			renderBasicCell(gfx, voidCellStyle, bounds, "", selected, false)
+			gfx.renderBasicCell(voidCellStyle, bounds, "", selected, false)
 		}
 	}
 

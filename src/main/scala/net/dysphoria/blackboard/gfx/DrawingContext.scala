@@ -12,6 +12,7 @@ import org.eclipse.swt.graphics._
 import net.dysphoria.blackboard.ui._
 
 class DrawingContext(val gc: GC, val ui: UIState) {
+	private val highlightRGB = new RGB(255, 255, 0)
 
 	private val resourceMap = new mutable.HashMap[Any, Resource]
 	private val resources = mutable.Set.empty[Resource]
@@ -111,4 +112,79 @@ class DrawingContext(val gc: GC, val ui: UIState) {
 		}
 	}
 	*/
+
+	def renderBasicCell(style: CellStyle, bounds: Rectangle, value: String, selectIntensity: Int, greyed: Boolean) {
+		val bg = mixBackground(style.backgroundColor, selectIntensity)
+		val fg = mix(style.color, bg, if (greyed) 80 else 256)
+		val alignedRect = roundBottomRight(bounds)
+		gc.setBackground(colorForRGB(bg))
+		gc.setForeground(colorForRGB(fg))
+		gc.setFont(font(style.fontFamily, style.fontSize, style.fontStyle))
+		val fm = gc.getFontMetrics
+		val h = fm.getAscent + fm.getDescent
+		val y = (bounds.height - h) / 2
+		val w = gc.stringExtent(value).x
+		val x =
+			if (style.textAlign == TextAlignLeft)
+				style.marginLeft
+
+			else if (style.textAlign == TextAlignCenter)
+				(bounds.width - w) / 2
+
+			else if (style.textAlign == TextAlignRight)
+				bounds.width - style.marginRight - w
+
+			else
+				error("Unrecognised textAlign value "+style.textAlign)
+
+		// Only set clipping if we need to:
+		if (!bounds.isEmpty) {
+			if (x < 0 || y < 0 || x+w >= bounds.width || y + h >= bounds.height)
+				// Clip to exactly top-left and slightly beyond bottom-right:
+				withclip(alignedRect){
+					// Because we have clipped to exact top-left coordinate, fill to beyond
+					// top-left to ensure that we don't leave a gap.
+					gc.fillRectangle(roundTopLeft(alignedRect))
+					gc.drawString(value, bounds.x+x, bounds.y+y, true)
+				}
+			else {
+				// Fill from exactly top-left and slightly beyond bottom-right:
+				gc.fillRectangle(alignedRect)
+				gc.drawString(value, bounds.x+x, bounds.y+y, true)
+			}
+		}
+	}
+
+	def mixBackground(bg: RGB, highlightIntensity: Int): RGB = highlightIntensity match {
+		case 0 => bg
+		case 2 => highlightRGB
+		case 1 => mix(bg, highlightRGB, 180)
+	}
+
+	def mix(one: RGB, two: RGB, alpha: Int) = {
+		require(alpha >= 0 && alpha <= 256)
+		alpha match {
+			case 0 => two
+			case 256=>one
+			case _ =>
+				val other = (256 - alpha)
+				new RGB(
+					((one.red * alpha) + (two.red * other)) >> 8,
+					((one.green * alpha) + (two.green * other)) >> 8,
+					((one.blue * alpha) + (two.blue * other)) >> 8);
+		}
+	}
+
+	private def roundBottomRight(r: Rectangle) =
+		new Rectangle(r.x, r.y, roundUp(r.width), roundUp(r.height))
+
+	private def roundTopLeft(rect: Rectangle) = {
+		val b = rect.y + rect.height
+		val r = rect.x + rect.width
+		val t = roundDown(rect.y)
+		val l = roundDown(rect.x)
+		new Rectangle(l, t, (r - l), (b - t))
+	}
+
+
 }

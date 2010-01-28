@@ -46,7 +46,6 @@ abstract class TablePart {
 		textAlign = TextAlignCenter
 		fontStyle = SWT.BOLD | SWT.ITALIC
 	}
-	private val highlightRGB = new RGB(255, 255, 0)
 
 	def labelStyle(axis: Axis, index: Int) = defaultLabelStyle
 
@@ -68,8 +67,7 @@ abstract class TablePart {
 
 	def innerBreadth(o:Orientation) = if (o.isX) innerSize.x else innerSize.y
 	def innerDepth(o:Orientation) = if (o.isY) innerSize.x else innerSize.y
-	def outerBreadth(o:Orientation) = if (o.isX) outerSize.x else outerSize.y
-	def outerDepth(o:Orientation) = if (o.isY) outerSize.x else outerSize.y
+	def outerBreadth(o:Orientation) = if (o.isX) innerSize.x + leftHeader + rightHeader else  innerSize.y + topHeader + bottomHeader
 	def nearHeader(o:Orientation) = if (o.isX) topHeader else leftHeader
 	def farHeader(o:Orientation) = if (o.isX) bottomHeader else rightHeader
 	def firstHeader(o:Orientation) = if (o.isX) leftHeader else topHeader
@@ -77,8 +75,6 @@ abstract class TablePart {
 
 	final def computeSize {
 		computeInnerSizeAndHeaders
-		outerSize = new Point(innerSize.x + leftHeader + rightHeader,
-							  innerSize.y + topHeader + bottomHeader)
 	}
 
 	// Should populate header sizes, and inner and outer sizes and labelDepth arrays
@@ -522,88 +518,14 @@ abstract class TablePart {
 			case _ => 0
 		}
 		if (withinData)
-			renderBasicCell(gfx, labelStyle(ax, index), bounds,
+			gfx.renderBasicCell(labelStyle(ax, index), bounds,
 							ax.label(index), selected, ax.greyed(index))
 		else
-			renderBasicCell(gfx, voidLabelStyle, bounds,
+			gfx.renderBasicCell(voidLabelStyle, bounds,
 							"(none)", selected, false)
 	}
 
 
-	def renderBasicCell(g: DrawingContext, style: CellStyle, bounds: Rectangle, value: String, selectIntensity: Int, greyed: Boolean) {
-		import g.gc
-		val bg = mixBackground(style.backgroundColor, selectIntensity)
-		val fg = mix(style.color, bg, if (greyed) 80 else 256)
-		val alignedRect = roundBottomRight(g, bounds)
-		gc.setBackground(g.colorForRGB(bg))
-		gc.setForeground(g.colorForRGB(fg))
-		gc.setFont(g.font(style.fontFamily, style.fontSize, style.fontStyle))
-		val fm = gc.getFontMetrics
-		val h = fm.getAscent + fm.getDescent
-		val y = (bounds.height - h) / 2
-		val w = gc.stringExtent(value).x
-		val x =
-			if (style.textAlign == TextAlignLeft)
-				style.marginLeft
-			
-			else if (style.textAlign == TextAlignCenter)
-				(bounds.width - w) / 2
-
-			else if (style.textAlign == TextAlignRight)
-				bounds.width - style.marginRight - w
-
-			else
-				error("Unrecognised textAlign value "+style.textAlign)
-			
-		// Only set clipping if we need to:
-		if (!bounds.isEmpty) {
-			if (x < 0 || y < 0 || x+w >= bounds.width || y + h >= bounds.height)
-				// Clip to exactly top-left and slightly beyond bottom-right:
-				g.withclip(alignedRect){
-					// Because we have clipped to exact top-left coordinate, fill to beyond
-					// top-left to ensure that we don't leave a gap.
-					gc.fillRectangle(roundTopLeft(g, alignedRect))
-					gc.drawString(value, bounds.x+x, bounds.y+y, true)
-				}
-			else {
-				// Fill from exactly top-left and slightly beyond bottom-right:
-				gc.fillRectangle(alignedRect)
-				gc.drawString(value, bounds.x+x, bounds.y+y, true)
-			}
-		}
-	}
-
-	def mixBackground(bg: RGB, highlightIntensity: Int): RGB = highlightIntensity match {
-		case 0 => bg
-		case 2 => highlightRGB
-		case 1 => mix(bg, highlightRGB, 180)
-	}
-
-	def mix(one: RGB, two: RGB, alpha: Int) = {
-		require(alpha >= 0 && alpha <= 256)
-		alpha match {
-			case 0 => two
-			case 256=>one
-			case _ =>
-				val other = (256 - alpha)
-				new RGB(
-					((one.red * alpha) + (two.red * other)) >> 8,
-					((one.green * alpha) + (two.green * other)) >> 8,
-					((one.blue * alpha) + (two.blue * other)) >> 8);
-		}
-	}
-
-	private def roundBottomRight(g: DrawingContext, r: Rectangle) =
-		new Rectangle(r.x, r.y, g.roundUp(r.width), g.roundUp(r.height))
-
-	private def roundTopLeft(g: DrawingContext, rect: Rectangle) = {
-		val b = rect.y + rect.height
-		val r = rect.x + rect.width
-		val t = g.roundDown(rect.y)
-		val l = g.roundDown(rect.x)
-		new Rectangle(l, t, (r - l), (b - t))
-	}
-	
 	def drawSeparator(gfx: DrawingContext, d: Axis, o: Orientation, b0: Int, d0: Int, length: Int){
 		d.interItemLine match {
 			case None => ;// No line
