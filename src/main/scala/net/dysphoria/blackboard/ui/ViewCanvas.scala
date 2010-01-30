@@ -43,7 +43,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 
 	val app: Application
 	var model: Group = new Group
-	var instance = model.instance(Map.empty)
+	var instance = model.instance(RootDataSelection, Map.empty)
 
 	val ui = new UIState(this)
 	val policy = new EditingStatePolicy(this)
@@ -108,6 +108,11 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val state = new EventState(e)
 		val point = viewToModel(new Point(e.x, e.y))
 
+		def clickNoDrag(item: Selectable) {
+			val alreadySelected = (item == ui.selection)
+			if (!alreadySelected) ui.select(item)
+			if (item.isInstanceOf[SingleGridSelection]) beginCellEdit(None)
+		}
 		e.`type` match {
 			// Events which fire regardless of widget:
 			case SWT.MouseWheel =>
@@ -142,13 +147,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 					else if (state.isMultiSelect)
 						ui.toggle(hitThing)
 
-					else if (ui.selection contains hitThing){ // potential drag
-						ui.focus = hitThing
-						ui.dragState = MouseDown(point.x, point.y) // Doesn't /really/ start til mouse moves.
-						if (ui.selection.isInstanceOf[SingleGridSelection]) beginCellEdit(None)
-
-					} else {
-						ui.select(hitThing)
+					else getDraggable(hitThing, point) match {
+						case NoDrag =>
+							clickNoDrag(hitThing)
+						case draggable =>
+							ui.focus = hitThing
+							ui.dragState = draggable
 					}
 
 				} else {
@@ -172,30 +176,34 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 				}
 
 			case SWT.MouseUp =>
-				if (ui.dragState == MouseDown)
-					ui.select(ui.focus)
+				ui.dragState match {
+					case drag: ConcreteDragObject =>
+						if (drag.isStarted)
+							drag.commit
+						else
+							clickNoDrag(ui.focus)
+					case _ =>
+				}
 				ui.dragState = NoDrag
 		
 			case SWT.MouseMove =>
 				setCursor(null)
 				ui.dragState match {
-					case NoDrag => {
+					case NoDrag =>
 						val isDragSelect = state.isPrimaryButton
 						if (isDragSelect) {
 							val hitThing = selectableThingAt(point)
 							ui.extendSelectionTo(hitThing)
 						}
-					}
-					case _ => //ignore
+					case d: ConcreteDragObject =>
+						d.dragTo(point)
+					redraw
 				}
-			
+
 			case SWT.DragDetect =>
-				println("drag-detect")
-				if (ui.dragState.isInstanceOf[MouseDown]){
-					ui.selection match {
-						//case b: SingleGridSpace => DragOperation.start(new BlockDragClient(this))
-						case _ => //ignore
-					}
+				ui.dragState match {
+					case drag: ConcreteDragObject if !drag.isStarted => drag.start
+					case _ =>
 				}
 			
 			case SWT.MouseExit =>
@@ -412,6 +420,10 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		val potentialCellEdit = !ui.fineEditMode &&
 								ui.selection.isInstanceOf[SingleGridSelection]
 		e.keyCode match {
+			case SWT.ESC if ui.dragState.isStarted =>
+				ui.dragState.cancel
+				ui.dragState = NoDrag
+			
 			case SWT.ARROW_UP => moveSelection(Up, ByOne)
 			case SWT.ARROW_DOWN => moveSelection(Down, ByOne)
 			case SWT.ARROW_LEFT => moveSelection(Left, ByOne)
@@ -465,6 +477,11 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			}
 			assert(sel.withinData)
 		}
+	}
+
+	def getDraggable(hit: Selectable, hitPoint: Point): DragObject = hit match {
+		case t: Table#Instance => new GroupElementDrag(t, hitPoint)
+		case _ => NoDrag
 	}
 
 	def processCellEditKey(e: Event): Boolean = {

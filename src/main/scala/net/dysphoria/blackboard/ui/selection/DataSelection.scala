@@ -1,5 +1,5 @@
 /**
- * Created by IntelliJ IDEA.
+ *   Created by IntelliJ IDEA.
  * User: andrew
  * Date: 10-Jan-2010
  * Time: 17:31:20
@@ -10,13 +10,15 @@ package net.dysphoria.blackboard.ui.selection
 
 import net.dysphoria.blackboard._
 import ui._
-import ui.model._
+import ui.Origin._
+import org.eclipse.swt.graphics.{Rectangle, Point}
 
 abstract class DataSelection extends Selectable {
 	/**
-	 * Which Displayable are we talking about?
+	 * Every DataSelection is nested within another, except the special
+	 * RootDataSelection.
 	 */
-	def displayable: DisplayableInstance
+	def container: DataSelection
 
 	/**
 	 * If this is a multiple selection, might have a set or range of values for particular
@@ -24,4 +26,24 @@ abstract class DataSelection extends Selectable {
 	 * i.e., which have only a single value per axis.
 	 */
 	def unambiguousCoords: Map[Axis, Int]
+
+	/**
+	 * Defined to be the same as (bounds.x, bounds.y).
+	 */
+	def position: Point
+
+	/**
+	 * Current layout box of this selection. Note that this function may return
+	 * different values for the same object if it moves between calls.
+	 */
+	def bounds: Rectangle
+}
+
+object RootDataSelection extends DisplayableContainer {
+	def container = throw new InternalFault("RootDataSelection does not itself have a container")
+	def unambiguousCoords = Map.empty
+	def positionOf(ob: DisplayableInstance) = Origin
+
+	def position = Origin
+	def bounds = error("RootDataSelection does not itself have bounds")
 }

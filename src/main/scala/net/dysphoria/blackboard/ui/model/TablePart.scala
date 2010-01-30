@@ -167,6 +167,10 @@ abstract class TablePart {
 			case part: TablePart#TablePartInstance => part.table
 		}
 
+		// Arguably these should be type errors rather than runtime errors:
+		def bounds = error("TablePart does not have bounds in and of itself")
+		def position = error("TablePart does not have a position in and of itself")
+
 		override def equals(other: Any) = other match {
 			case partInstance: TablePartInstance =>
 				partInstance.model == this.model &&

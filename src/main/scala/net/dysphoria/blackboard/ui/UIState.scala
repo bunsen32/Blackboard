@@ -22,7 +22,7 @@ class UIState(val control: ViewCanvas) {
 	var isIncludingNotExcluding = false
 	var anchor: Selectable = NullSelection
 	var focus: Selectable = NullSelection
-	var dragState: DragState = NoDrag
+	var dragState: DragObject = NoDrag
 	private var _dropTarget: Option[Displayable] = None
 
 	private var _selectLargeBits = false

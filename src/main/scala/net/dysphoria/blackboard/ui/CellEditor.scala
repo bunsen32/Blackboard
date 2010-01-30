@@ -19,5 +19,5 @@ class CellEditor(cell: DataCellInstance) extends GridEditSource {
 
 	def read = array(coords).toString
 	def write(s: String) {array(coords) = s}
-	def getBounds(canvas: ViewCanvas) = canvas.model.boundsOf(Origin, cell)
+	def getBounds(canvas: ViewCanvas) = cell.bounds
 }

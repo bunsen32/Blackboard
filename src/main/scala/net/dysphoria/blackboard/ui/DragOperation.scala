@@ -13,6 +13,7 @@ import org.eclipse.swt.events._
 import org.eclipse.swt.graphics._
 import org.eclipse.swt.widgets._
 import Listeners._
+import Origin._
 
 /**
  * Interface for (essentially) a drag source.
@@ -51,8 +52,12 @@ abstract class DragClient {
 	def stop {}
 }
 
+/**
+ * A drag operation which is potentially between different controls, and which
+ * uses a semitransparent Shell to display drag contents.
+ * For dragging within ViewCanvas, see DragObject.
+ */
 class DragOperation(val window: Shell) {
-	import DragOperation.Origin
 	private def display = window.getDisplay
 	val dragLayer = new Shell(window, SWT.NO_TRIM | SWT.POP_UP)
 	dragLayer setAlpha 192
@@ -64,8 +69,8 @@ class DragOperation(val window: Shell) {
 	private var _size: Point = Origin
 	private var _rotationRadians: Float = 0F
 	private var _origin: Point = Origin // derived from size+rotation
-	private var _dragAnchor = Origin
-	private var _transformedAnchor = Origin
+	private var _dragAnchor: Point = Origin
+	private var _transformedAnchor: Point = Origin
 
 	private val listener: Listener = handleEvent _
 	dragLayer.addListener(SWT.Paint, listener)
@@ -243,7 +248,6 @@ class DragOperation(val window: Shell) {
  * any one time.
  */
 object DragOperation {
-	private val Origin = new Point(0, 0) // never mutated, by convention
 	var existingOperations = mutable.Map[Shell, DragOperation]()
 
 	def start(from: DragClient) = {

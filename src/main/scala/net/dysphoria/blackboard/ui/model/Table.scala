@@ -50,7 +50,7 @@ class Table(var topBlock: TablePart) extends Displayable {
 		topBlock.renderLabels(g, dataOrigin, Vertical, context)
 	}
 
-	def boundsOf(origin: Point, sel: DataSelection) = sel match {
+/*	def boundsOf(origin: Point, sel: DataSelection) = sel match {
 		case label: LabelInstance => labelBounds(origin, label)
 		
 		case labels: LabelRange =>
@@ -58,24 +58,26 @@ class Table(var topBlock: TablePart) extends Displayable {
 			val r2 = labelBounds(origin, labels.last)
 			r1.union(r2)
 
-		case cell: AbstractCellInstance => 
-			val x = topBlock.breadthCellBounds(topBlock.leftHeader, Horizontal, cell.coords)
-			val y = topBlock.breadthCellBounds(topBlock.topHeader, Vertical, cell.coords)
-			new Rectangle(origin.x + x.start, origin.y + titleHeight + y.start, x.length, y.length)
-	}
+		case cell: AbstractCellInstance => cellBounds(origin, cell)
+	}*/
 
 	private def labelBounds(origin: Point, lab: LabelInstance): Rectangle = {
 		topBlock.labelBounds(new Point(origin.x + topBlock.leftHeader, origin.y + titleHeight + topBlock.topHeader), lab)
 	}
 
+	private def cellBounds(origin: Point, cell: AbstractCellInstance): Rectangle = {
+		val x = topBlock.breadthCellBounds(topBlock.leftHeader, Horizontal, cell.coords)
+		val y = topBlock.breadthCellBounds(topBlock.topHeader, Vertical, cell.coords)
+		new Rectangle(origin.x + x.start, origin.y + titleHeight + y.start, x.length, y.length)
+	}
+
 	override type Instance = TableInstance
 
-	def instance(coords: Map[Axis, Int]) = TableInstance(coords)
+	def instance(container: DisplayableContainer, coords: Map[Axis, Int]) = TableInstance(container, coords)
 
-	case class TableInstance(coords: Map[Axis,Int]) extends DisplayableInstance with TableBuildingBlock with TableItemSelection {
+	case class TableInstance(val container: DisplayableContainer, coords: Map[Axis,Int]) extends DisplayableInstance with TableBuildingBlock with TableItemSelection {
 		override def model = Table.this
 		def table = this
-		def container = throw new NotImplementedException
 		type ComponentType = TablePart#TablePartInstance
 		lazy val topPart = model.topBlock.instance(this, coords)
 
@@ -127,10 +129,15 @@ class Table(var topBlock: TablePart) extends Displayable {
 				None
 		}
 
+		def boundsOf(item: SingleGridSelection): Rectangle = item match {
+			case label: LabelInstance => model.labelBounds(position, label)
+			case cell: AbstractCellInstance => model.cellBounds(position, cell)
+		}
 	}
 
 	def instanceIs(instanceCoords: Map[Axis,Int], table: Table#TableInstance): Boolean =
 		(table.model == this && instanceCoords == table.coords)
+
 }
 
 object Table {

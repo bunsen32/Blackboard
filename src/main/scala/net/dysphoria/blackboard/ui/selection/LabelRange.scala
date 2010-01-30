@@ -9,6 +9,7 @@ package net.dysphoria.blackboard.ui.selection
 import net.dysphoria.blackboard._
 import ui._
 import ui.model._
+import org.eclipse.swt.graphics.Point
 
 sealed abstract class LabelRange(val orientation: Orientation, val unambiguousCoords: Map[Axis,Int], val axis: Axis, val range: Range) extends LabelSelection {
 	require(range.length > 1, "LabelRange consisting of fewer than 2 labels not allowed")
@@ -36,6 +37,14 @@ sealed abstract class LabelRange(val orientation: Orientation, val unambiguousCo
 
 	private def contains(container: Map[Axis,Int], contained: Map[Axis,Int]) =
 		contained.forall(kv => {val (k, v) = kv; container(k) == v})
+
+
+	def bounds = first.bounds union last.bounds
+
+	def position = {
+		val b = first.bounds
+		new Point(b.x, b.y)
+	}
 
 	override def equals(obj: Any) = obj match {
 		case other: LabelRange =>

@@ -12,5 +12,5 @@ import Origin._
 class LabelEditor(label: LabelInstance) extends GridEditSource {
 	def read = label.axis.label(label.index).toString
 	def write(str: String) { label.axis.label_=(label.index, str) }
-	def getBounds(canvas: ViewCanvas) = canvas.model.boundsOf(Origin, label)
+	def getBounds(canvas: ViewCanvas) = label.bounds
 }

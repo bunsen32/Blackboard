@@ -19,7 +19,6 @@ trait TableItemSelection extends DataSelection { self: DataSelection =>
 
 abstract class TableSubItemSelection extends TableItemSelection {
 	override def container: TableItemSelection
-	final override def displayable = table
 }
 
 trait LabelContainer extends TableItemSelection {

@@ -33,11 +33,6 @@ class Group extends Displayable {
 		size = new Point(bounds.width, bounds.height)
 	}
 
-	def boundsOf(origin: Point, ob: DataSelection) = {
-		val (p, el) = elementFor(ob.unambiguousCoords)
-		el.boundsOf(new Point(origin.x + p.x, origin.y + p.y), ob)
-	}
-
 	def render(g: DrawingContext, xy: Point, context: Map[Axis, Int]) {
 		for(i <- 0 until elements.length) {
 			val (p, d) = elements(i)
@@ -55,16 +50,29 @@ class Group extends Displayable {
 		elements.append((position, element))
 	}
 
+	def getRelativePosition(element: Displayable) =
+		elements(indexOf(element))._1
+
+	def setRelativePosition(element: Displayable, position: Point) {
+		elements(indexOf(element)) = (position, element)
+	}
+
+	def indexOf(element: Displayable) =
+		elements.findIndexOf(_._2 == element) match {
+			case -1 => error("Displayable not found in group:"+element)
+			case i => i
+		}
+
 	override type Instance = GroupInstance
 
-	def instance(coords: Map[Axis, Int]) = GroupInstance(coords)
+	def instance(container: DisplayableContainer, coords: Map[Axis, Int]) = GroupInstance(container, coords)
 
-	case class GroupInstance(coords: Map[Axis, Int]) extends DisplayableInstance {
+	case class GroupInstance(val container: DisplayableContainer, coords: Map[Axis, Int]) extends DisplayableInstance with DisplayableContainer {
 		override def model = Group.this
 		lazy val elements = (0 until model.elements.length) map (i => {
 			val (position, d) = model.elements(i)
 			val childCoords = coords + ((structAxis, i))
-			(position, d.instance(childCoords))
+			(position, d.instance(this, childCoords))
 		}) toSeq
 
 		override def hitTest(point: Point) = {
@@ -73,6 +81,13 @@ class Group extends Displayable {
 				val relPoint = new Point(point.x - position.x, point.y - position.y)	
 				d.hitTest(relPoint)
 			}) find (_ != NullSelection) getOrElse NullSelection
+		}
+
+		def positionOf(ob: DisplayableInstance) = {
+			val (childPosition, childModel) = model.elementFor(ob.unambiguousCoords)
+			assert(childModel == ob.model)
+			val thisPosition = this.position
+			new Point(thisPosition.x + childPosition.x, thisPosition.y + childPosition.y)
 		}
 
 	}

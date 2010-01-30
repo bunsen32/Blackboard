@@ -103,7 +103,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				val noXAxes = (cell.table.topBlock.xAxes.length == 0)
 				val noYAxes = (cell.table.topBlock.yAxes.length == 0)
 				if (noXAxes || noYAxes) {
-					val rect = control.model.boundsOf(Origin, cell)
+					val rect = cell.bounds
 					val ctrls = if (noXAxes && noYAxes)
 							singleCellCtrls
 						else if (noXAxes)
@@ -115,7 +115,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 					_selectionEditingOverlay.visible = false
 
 			case lab: LabelInstance =>
-				val rect = control.model.boundsOf(Origin, lab)
+				val rect = lab.bounds
 				val axis = lab.axis
 				val deleteAxis = axis.length <= 1
 				val deleteLabel = (axis.length - 1 >= axis.nominalMinimumLength)
@@ -126,7 +126,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				}))
 
 			case labs: LabelRange =>
-				val rect = control.model.boundsOf(Origin, labs)
+				val rect = labs.bounds
 				val axis = labs.axis
 				val deleteAxis = axis.length <= labs.range.length
 				val deleteLabel = (axis.length - labs.range.length) >= axis.nominalMinimumLength

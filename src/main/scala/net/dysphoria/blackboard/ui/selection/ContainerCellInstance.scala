@@ -1,7 +1,8 @@
 package net.dysphoria.blackboard.ui.selection
 
-import net.dysphoria.blackboard.ui.Axis
-import net.dysphoria.blackboard.ui.model.TableArrayContainer
+import net.dysphoria.blackboard.ui
+import ui.{Axis, DisplayableContainer}
+import ui.model.TableArrayContainer
 
 /**
  * Created by IntelliJ IDEA.
@@ -11,8 +12,13 @@ import net.dysphoria.blackboard.ui.model.TableArrayContainer
  * To change this template use File | Settings | File Templates.
  */
 
-case class ContainerCellInstance(part: TableArrayContainer#Instance, coords: Map[Axis, Int]) extends AbstractCellInstance {
-	def contents = part.model.contents.instance(coords)
+case class ContainerCellInstance(part: TableArrayContainer#Instance, coords: Map[Axis, Int]) extends AbstractCellInstance with DisplayableContainer {
+	def contents = part.model.contents.instance(this, coords)
 
 	def adjacent(direction: CompassPosition)(implicit hint: SelectionHints) = part.oneBeyond(this, direction)
+
+	def positionOf(ob: DisplayableInstance) = {
+		this.position
+	}
+
 }

@@ -16,17 +16,28 @@ abstract class Displayable {
 	def computeSize
 	def render(g: DrawingContext, xy: Point, context: Map[Axis, Int]);
 	def size: Point
-	def boundsOf(origin: Point, ob: DataSelection): Rectangle
+	//def boundsOf(origin: Point, ob: DataSelection): Rectangle
 
 	type Instance <: DisplayableInstance
 
-	def instance(coords: Map[Axis,Int]): Instance
+	def instance(container: DisplayableContainer, coords: Map[Axis,Int]): Instance
 }
 
 abstract class DisplayableInstance extends DataSelection {
+	def container: DisplayableContainer
 	def displayable: this.type = this
 	def model: Displayable
 	val coords: Map[Axis, Int]
 	final def unambiguousCoords = coords
 	def hitTest(p: Point): Selectable = NullSelection
+
+	def position = container.positionOf(this)
+	def bounds = {
+		val (pos, extent) = (position, model.size)
+		new Rectangle(pos.x, pos.y, extent.x, extent.y)
+	}
+}
+
+trait DisplayableContainer extends DataSelection {
+	def positionOf(d: DisplayableInstance): Point
 }
