@@ -14,7 +14,7 @@ import collection.immutable.Map
 import net.dysphoria.blackboard.ui.{Displayable, Orientation, Axis}
 import net.dysphoria.blackboard.ui.selection.{TableBuildingBlock, ContainerCellInstance, TableItemSelection}
 
-class TableArrayContainer(val table: Table, var contents: Displayable) extends TableArray {
+class TableArrayContainer(var contents: Displayable) extends TableArray {
 	def arrayTable(coords: Map[Axis, Int]) = null
 
 	def breadthOfCell(orientation: Orientation, c: Map[Axis, Int]) =

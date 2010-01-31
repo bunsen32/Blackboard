@@ -11,8 +11,21 @@ import net.dysphoria.blackboard._
 import ui._
 import ui.model._
 import ui.selection._
+import org.eclipse.swt.graphics.Point
 
 trait TableActions { self: ActionsHolder =>
+
+	object NewTable extends Action {
+		def name = "New table"
+		override def accelerator = SWT.MOD1 | 'n'
+		def isApplicable = true
+		def safeApply = {
+			val group = currentView.model
+			val newTable = new Table(new TableArrayData)
+			group.add(new Point(0, group.size.y + 1024), newTable)
+			currentView.modelUpdated
+		}
+	}
 
 	object GroupRowCols extends Action {
 		def name = "Group "+rowColString

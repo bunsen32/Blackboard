@@ -12,7 +12,7 @@ import Origin._
  * To change this template use File | Settings | File Templates.
  */
 
-class GroupElementDrag(element: DisplayableInstance, dragHandleModel: Point) extends ConcreteDragObject {
+abstract class GroupElementDrag(element: DisplayableInstance, dragHandleModel: Point) extends ConcreteDragObject {
 	val group = element.container.asInstanceOf[Group#Instance]
 	var dragHandleOffset: Point = Origin
 	val originalRelativePosition = group.model.getRelativePosition(element.model)
@@ -28,7 +28,11 @@ class GroupElementDrag(element: DisplayableInstance, dragHandleModel: Point) ext
 
 	def dragTo(p: Point) {
 		val newPosition = new Point(p.x - dragHandleOffset.x, p.y - dragHandleOffset.y)
-		group.model.setRelativePosition(element.model, newPosition)
-		// TODO: recalculate bounds all the way down.
+		if (newPosition.x >= 0 && newPosition.y >= 0){
+			group.model.setRelativePosition(element.model, newPosition)
+			modelUpdated
+		}
 	}
+
+	def modelUpdated
 }

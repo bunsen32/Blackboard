@@ -19,7 +19,6 @@ abstract class TablePart {
 	val genericCellHeight = 19*256 // Need to get rid of these at some point.
 	val genericCellWidth = 50*256 // Will be replaced by the CSS styles.
 
-	val table: Table
 	var xAxes: Seq[Axis] = Nil
 	var yAxes: Seq[Axis] = Nil
 

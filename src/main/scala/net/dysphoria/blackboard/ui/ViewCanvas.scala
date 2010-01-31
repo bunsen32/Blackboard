@@ -16,17 +16,13 @@ import swt.widgets.{Composite, Event, Listener, Menu}
 
 import net.dysphoria.blackboard._
 import gfx._
+import ui.Origin._
 import ui.Listeners._
 import ui.selection._
 import ui.actions._
 import ui.model._
 
 abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(parent, SWT.H_SCROLL|SWT.V_SCROLL|SWT.DOUBLE_BUFFERED) {
-	private val Origin = new Point(0, 0)
-	val white = new RGB(255, 255, 255)
-	val black = new RGB(0, 0, 0)
-	val red = new RGB(255, 0, 0)
-
 	private val listener: Listener = handleEvent _
 	private val cellEditListener: Listener = handleCellEditEvent _
 	private val interestingEvents = Array(
@@ -111,7 +107,7 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		def clickNoDrag(item: Selectable) {
 			val alreadySelected = (item == ui.selection)
 			if (!alreadySelected) ui.select(item)
-			if (item.isInstanceOf[SingleGridSelection]) beginCellEdit(None)
+			if (alreadySelected && item.isInstanceOf[SingleGridSelection]) beginCellEdit(None)
 		}
 		e.`type` match {
 			// Events which fire regardless of widget:
@@ -353,6 +349,12 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		}
 	}
 
+	def modelUpdated {
+		model.computeSize
+		computeBounds
+		redraw
+	}
+
 	def viewToModel(p: Point): Point = viewToModel(p.x, p.y)
 	def viewToModel(x: Int, y: Int) = new Point(
 		(x / scale + offsetX).toInt,
@@ -388,16 +390,14 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 		}
 		try{
 			val canvasArea = getClientArea
-			val gridSize = model.size
+			gc.setBackground(gfx.colorForRGB(ViewCanvas.backgroundColour))
+			gc.fillRectangle(canvasArea)
 
 			val trans = gfx.newTransform
 			trans.identity
 			trans.scale(scale.toFloat, scale.toFloat)
 			trans.translate(- offsetX.toFloat, - offsetY.toFloat)
 			gc.setTransform(trans)
-
-			gc.setBackground(gc.getDevice.getSystemColor(SWT.COLOR_GRAY))
-			gc.fillRectangle(0, 0, gridSize.x, gridSize.y)
 
 			model.render(gfx, Origin, Map.empty)
 
@@ -480,7 +480,9 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 	}
 
 	def getDraggable(hit: Selectable, hitPoint: Point): DragObject = hit match {
-		case t: Table#Instance => new GroupElementDrag(t, hitPoint)
+		case t: Table#Instance => new GroupElementDrag(t, hitPoint){
+			def modelUpdated = ViewCanvas.this.modelUpdated
+		}
 		case _ => NoDrag
 	}
 
@@ -539,7 +541,8 @@ abstract class ViewCanvas(parent: Composite, style: Int) extends Composite(paren
 			case ex => {println(ex); throw ex}
 		}
     }
-
-
 }
 
+object ViewCanvas {
+	val backgroundColour = new RGB(230, 230, 230)
+}

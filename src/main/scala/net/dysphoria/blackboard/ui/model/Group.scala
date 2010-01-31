@@ -50,6 +50,10 @@ class Group extends Displayable {
 		elements.append((position, element))
 	}
 
+	def remove(element: Displayable) {
+		elements.remove(indexOf(element))
+	}
+
 	def getRelativePosition(element: Displayable) =
 		elements(indexOf(element))._1
 
@@ -69,17 +73,16 @@ class Group extends Displayable {
 
 	case class GroupInstance(val container: DisplayableContainer, coords: Map[Axis, Int]) extends DisplayableInstance with DisplayableContainer {
 		override def model = Group.this
-		lazy val elements = (0 until model.elements.length) map (i => {
-			val (position, d) = model.elements(i)
-			val childCoords = coords + ((structAxis, i))
-			(position, d.instance(this, childCoords))
-		}) toSeq
 
 		override def hitTest(point: Point) = {
-			(0 until elements.length) map (i => {
-				val (position, d) = elements(i)
-				val relPoint = new Point(point.x - position.x, point.y - position.y)	
-				d.hitTest(relPoint)
+			((elements.length - 1) to 0 by -1) map (i => {
+				val (position, d) = Group.this.elements(i)
+				val relPoint = new Point(point.x - position.x, point.y - position.y)
+				val size = d.size
+				if (relPoint.x >= 0 && relPoint.x < size.x && relPoint.y >= 0 && relPoint.y < size.y)
+					d.instance(this, coords + ((structAxis, i))).hitTest(relPoint)
+				else
+					NullSelection
 			}) find (_ != NullSelection) getOrElse NullSelection
 		}
 

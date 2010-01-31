@@ -18,6 +18,7 @@ class Table(var topBlock: TablePart) extends Displayable {
 	val titleHeight = 19*256 // Need to get rid of these at some point.
 	val titleStyle = new CellStyle {
 		fontStyle = SWT.ITALIC
+		backgroundColor = ViewCanvas.backgroundColour
 	}
 
 	def computeSize {
@@ -44,22 +45,13 @@ class Table(var topBlock: TablePart) extends Displayable {
 		val titleBounds = new Rectangle(origin.x, origin.y, size.x, titleHeight)
 		g.renderBasicCell(titleStyle, titleBounds, title, (if(isSelected)2 else 0), false)
 
+		g.gc.setBackground(g.gc.getDevice.getSystemColor(SWT.COLOR_GRAY))
+		g.gc.fillRectangle(origin.x, origin.y + titleHeight, size.x, size.y - titleHeight)
 		topBlock.renderCells(g, dataOrigin, context)
 		//Headers
 		topBlock.renderLabels(g, dataOrigin, Horizontal, context)
 		topBlock.renderLabels(g, dataOrigin, Vertical, context)
 	}
-
-/*	def boundsOf(origin: Point, sel: DataSelection) = sel match {
-		case label: LabelInstance => labelBounds(origin, label)
-		
-		case labels: LabelRange =>
-			val r1 = labelBounds(origin, labels.first)
-			val r2 = labelBounds(origin, labels.last)
-			r1.union(r2)
-
-		case cell: AbstractCellInstance => cellBounds(origin, cell)
-	}*/
 
 	private def labelBounds(origin: Point, lab: LabelInstance): Rectangle = {
 		topBlock.labelBounds(new Point(origin.x + topBlock.leftHeader, origin.y + titleHeight + topBlock.topHeader), lab)

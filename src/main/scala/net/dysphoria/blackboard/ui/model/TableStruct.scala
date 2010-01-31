@@ -14,7 +14,7 @@ import gfx._
 import ui._
 import ui.selection._
 
-class TableStruct(val table: Table, val structAxis: StructAxis) extends TablePart {
+class TableStruct(val structAxis: StructAxis) extends TablePart {
 	var orientation: Orientation = Horizontal
 	var elements = new mutable.ArrayBuffer[TablePart]
 	var labelDepths: Array[Int] = null

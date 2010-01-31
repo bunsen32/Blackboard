@@ -14,7 +14,7 @@ import gfx._
 import selection._
 import collection.immutable.Map
 
-class TableArrayData(val table: Table) extends TableArray {
+class TableArrayData extends TableArray {
 	var array = new FlexibleDataArray(Nil)
 	val cellStyle = new CellStyle
 	val voidCellStyle = new CellStyle {

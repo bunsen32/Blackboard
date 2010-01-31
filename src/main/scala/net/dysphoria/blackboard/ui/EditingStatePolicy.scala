@@ -82,6 +82,9 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	val deleteRowLabelCtrls = Seq(
 		EditingNodeSpec(Left, deleteGlyph, labelDeleteData _))
 
+	val tableCtrls = Seq(
+		EditingNodeSpec(Left, deleteGlyph, tableDelete _))
+
 	control.ui.stateChangedListeners += (_ => updateState)
 
 	def updateState {
@@ -99,38 +102,38 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		}
 
 		currentSelection match {
+			case table: Table#Instance =>
+				_selectionEditingOverlay.set(table, tableCtrls)
+
 			case cell: AbstractCellInstance =>
 				val noXAxes = (cell.table.topBlock.xAxes.length == 0)
 				val noYAxes = (cell.table.topBlock.yAxes.length == 0)
 				if (noXAxes || noYAxes) {
-					val rect = cell.bounds
 					val ctrls = if (noXAxes && noYAxes)
 							singleCellCtrls
 						else if (noXAxes)
 							singleCellXCtrls
 						else
 							singleCellYCtrls
-					_selectionEditingOverlay.set(rect, ctrls)
+					_selectionEditingOverlay.set(cell, ctrls)
 				}else
 					_selectionEditingOverlay.visible = false
 
 			case lab: LabelInstance =>
-				val rect = lab.bounds
 				val axis = lab.axis
 				val deleteAxis = axis.length <= 1
 				val deleteLabel = (axis.length - 1 >= axis.nominalMinimumLength)
-				_selectionEditingOverlay.set(rect, labelCtrls(lab.orientation, deleteLabel, deleteAxis, axis match {
+				_selectionEditingOverlay.set(lab, labelCtrls(lab.orientation, deleteLabel, deleteAxis, axis match {
 					case s: StructAxis => 3
 					case a: ArrayAxis if lab.index >= a.last => 2
 					case _ => 1
 				}))
 
 			case labs: LabelRange =>
-				val rect = labs.bounds
 				val axis = labs.axis
 				val deleteAxis = axis.length <= labs.range.length
 				val deleteLabel = (axis.length - labs.range.length) >= axis.nominalMinimumLength
-				_selectionEditingOverlay.set(rect, labelCtrls(labs.orientation, deleteLabel, deleteAxis, axis match {
+				_selectionEditingOverlay.set(labs, labelCtrls(labs.orientation, deleteLabel, deleteAxis, axis match {
 					case s: StructAxis => 3
 					case a: ArrayAxis if eq(labs.range, a.range) => 3
 					case a: ArrayAxis => 0
@@ -209,7 +212,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			val (startIx, endIx) = (labs.range.start, labs.range.last + 1)
 
 			val newAxis = new StructAxis(labs.range.length){interItemLine = thinnerThan(thinnerThan(oldAxis.interItemLine))}
-			val newBlock = new TableStruct(labs.table, newAxis)
+			val newBlock = new TableStruct(newAxis)
 			newBlock.orientation = labs.orientation
 			newBlock.elements ++= oldBlock.elements.slice(startIx, endIx)
 			newBlock.axes(labs.orientation) = Seq(newAxis)
@@ -260,7 +263,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		(label.axis, label.ownerPartModel) match {
 			case (s: StructAxis, b: TableStruct) =>
 				s.insert(label.index + 1, 1)
-				val arr = new TableArrayData(label.table)
+				val arr = new TableArrayData
 				for(ax <- allArrayAxesInLabelScope(label)) arr.array.addDimension(ax)
 				b.elements.insert(label.index + 1, arr)
 				updateDisplay
@@ -275,7 +278,8 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				// axis below existing one, need a) to determine correct semantics
 				// and b) implement it!]
 				validActionIf(structAxisIndex == -1 || structAxisIndex > label.axisIndex)
-				label.table.topBlock = splitAfterArray(label.table.topBlock, label, a)
+				val table = label.table.model
+				table.topBlock = splitAfterArray(table.topBlock, label, a)
 				
 				currentSelection = NullSelection
 				updateDisplay
@@ -312,14 +316,14 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 				b.axes(o) = existingAxes
 				b.axes(orthogonal) = existingOrthAxes
 
-				val newChild = new TableArrayData(fromBlock.table)
+				val newChild = new TableArrayData
 				for(ax <- promotedAxes) forArrayAxis(ax, newChild.array.addDimension(_))
 				for(ax <- promotedOrthAxes) forArrayAxis(ax, newChild.array.addDimension(_))
 				for(ax <- lab.container.unambiguousCoords.keys) forArrayAxis(ax, newChild.array.addDimension(_))
 
 				val newAxis = new StructAxis(2){interItemLine = thickerThan(arrayAxis.interItemLine)}
 				newAxis.elements(0) = ("data", false) // Hide struct element for existing array.
-				val newTop = new TableStruct(fromBlock.table, newAxis)
+				val newTop = new TableStruct(newAxis)
 				newTop.orientation = o
 				newTop.axes(o) = promotedAxes ++ Some(newAxis)
 				newTop.axes(orthogonal) = promotedOrthAxes
@@ -358,12 +362,12 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 			val(promotedArrayAxes, existingOrthAxes) = topLevelArrayAxes(topBlock.axes(orthogonal))
 
 			topBlock.axes(orthogonal) = existingOrthAxes
-			val newChild = new TableArrayData(topBlock.table)
+			val newChild = new TableArrayData
 			newChild.axes(orthogonal) = existingOrthAxes
 			for(ax <- promotedArrayAxes) newChild.array.addDimension(ax)
 
 			val newAxis = new StructAxis(2){interItemLine = thinLine}
-			val newTop = new TableStruct(topBlock.table, newAxis)
+			val newTop = new TableStruct(newAxis)
 			newTop.elements ++= Seq(topBlock, newChild)
 			newTop.orientation = o
 			newTop.axes(o) = List(newAxis)
@@ -418,6 +422,17 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 		}
 	}
 
+	def tableDelete {
+		currentSelection match {
+			case table: Table#Instance =>
+				control.model.remove(table)
+				currentSelection = NullSelection
+				updateDisplay
+			
+			case _ => notValidAction
+		}
+	}
+
 	def coalesceStruct(block: TablePart, sel: LabelSelection): TablePart = {
 		block match {
 			case s: TableStruct if s != sel.ownerPartModel =>
@@ -447,7 +462,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 
 	private def currentSelection = control.ui.selection
 	private def currentSelection_=(newSel: Selectable) {
-		control.ui.selection = newSel
+		control.ui.select(newSel)
 	}
 
 	private def forAllArraysInBlock(b: TablePart, f: FlexibleDataArray=>Unit): Unit =
@@ -484,9 +499,7 @@ class EditingStatePolicy(control: ViewCanvas) extends Disposable {
 	// TODO: Eventually this should not be required; changes to model should
 	// automatically update the view.
 	def updateDisplay {
-		control.model.computeSize
-		control.computeBounds
-		control.redraw
+		control.modelUpdated
 		updateState
 	}
 
