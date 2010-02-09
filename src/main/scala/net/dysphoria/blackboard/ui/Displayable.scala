@@ -16,7 +16,6 @@ abstract class Displayable {
 	def computeSize
 	def render(g: DrawingContext, xy: Point, context: Map[Axis, Int]);
 	def size: Point
-	//def boundsOf(origin: Point, ob: DataSelection): Rectangle
 
 	type Instance <: DisplayableInstance
 
