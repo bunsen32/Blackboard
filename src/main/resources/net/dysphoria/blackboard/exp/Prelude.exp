@@ -1,3 +1,6 @@
+/*
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
+ */
 {
 trait Eq T {
   function (a: T)=(b: T): Boolean

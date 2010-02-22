@@ -1,14 +1,9 @@
+/*
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
+ */
 package net.dysphoria.blackboard.ui.selection
 
 import net.dysphoria.blackboard.ui.{Orientation, Axis}
-
-/**
- * Created by IntelliJ IDEA.
- * User: andrew
- * Date: 25-Jan-2010
- * Time: 17:21:27
- * To change this template use File | Settings | File Templates.
- */
 
 abstract class SelectionHints(val coords: Map[Axis, Int]) {
 	def forAxes(axes: Iterable[Axis]) =

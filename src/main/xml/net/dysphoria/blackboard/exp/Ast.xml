@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <!--
-    Document   : ASTDescription.xml
-    Created on : July 26, 2009, 11:42 AM
-    Author     : andrew
-    Description:
-        Purpose of the document follows.
+/*
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
+ */
 -->
-
 <trait name="Ast" package="net.dysphoria.blackboard.exp">
 <!-- purposefully do not indent here, so that generated code indentation looks alright -->
 

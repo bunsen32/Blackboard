@@ -1,9 +1,6 @@
 /*
- * Action.scala
- *
- * Part of
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
  */
-
 package net.dysphoria.blackboard.ui.actions
 
 import org.eclipse.swt.SWT

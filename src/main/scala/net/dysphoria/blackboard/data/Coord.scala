@@ -1,10 +1,6 @@
 /*
- * Coord.scala
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
  */
-
 package net.dysphoria.blackboard.data
 
 class Coord(s: Seq[Int]) extends Seq[Int] {

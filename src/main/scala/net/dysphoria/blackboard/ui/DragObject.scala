@@ -1,14 +1,9 @@
+/*
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
+ */
 package net.dysphoria.blackboard.ui
 
 import org.eclipse.swt.graphics.Point
-
-/**
- * Created by IntelliJ IDEA.
- * User: andrew
- * Date: 29-Jan-2010
- * Time: 14:52:11
- * To change this template use File | Settings | File Templates.
- */
 
 sealed abstract class DragObject {
 	def isMouseDown: Boolean

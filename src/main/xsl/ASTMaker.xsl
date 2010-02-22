@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <!--
-    Document   : ASTMaker.xsl
-    Created on : July 26, 2009, 11:41 AM
-    Author     : andrew
-    Description:
-        Purpose of transformation follows.
+/*
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
+ */
 -->
-
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="2.0">
     <xsl:output method="text"/>
 
-    <!-- TODO customize transformation rules 
-         syntax recommendation http://www.w3.org/TR/xslt 
-    -->
     <xsl:template match="trait">
+/*
+ *  Part of Blackboard spreadsheet. ©2010 Andrew Forrest. See LICENSE file for details.
+ */
 package <xsl:value-of select="@package"/>
 
 import scala.util.parsing.input.{Position,NoPosition}
